@@ -1,0 +1,1085 @@
+{
+  "metadata": {
+    "seed": 42,
+    "confidence_intervals": "95% bootstrap for means; Wilson for proportions",
+    "generated_by": "new/evidence.py"
+  },
+  "scene1": {
+    "small": {
+      "population": 100,
+      "runs": 80,
+      "start_male_council_pct": 60.0,
+      "start_seat_likelihood_ratio_male_vs_female": 1.5,
+      "late_male_council_pct": {
+        "mean": 100.0,
+        "ci95": [
+          100.0,
+          100.0
+        ],
+        "n": 80
+      },
+      "final_all_male": {
+        "count": 80,
+        "n": 80,
+        "pct": 100.0,
+        "ci95_pct": [
+          95.42,
+          100.0
+        ]
+      },
+      "post_start_council_years_male_majority": {
+        "count": 2400,
+        "n": 2400,
+        "pct": 100.0,
+        "ci95_pct": [
+          99.84,
+          100.0
+        ]
+      },
+      "round_first_reaches_90pct_male": {
+        "mean": 2.962,
+        "ci95": [
+          2.9,
+          3.025
+        ],
+        "n": 80
+      }
+    },
+    "large": {
+      "population": 1000,
+      "runs": 80,
+      "start_male_council_pct": 60.0,
+      "start_seat_likelihood_ratio_male_vs_female": 1.5,
+      "late_male_council_pct": {
+        "mean": 100.0,
+        "ci95": [
+          100.0,
+          100.0
+        ],
+        "n": 80
+      },
+      "final_all_male": {
+        "count": 80,
+        "n": 80,
+        "pct": 100.0,
+        "ci95_pct": [
+          95.42,
+          100.0
+        ]
+      },
+      "post_start_council_years_male_majority": {
+        "count": 2400,
+        "n": 2400,
+        "pct": 100.0,
+        "ci95_pct": [
+          99.84,
+          100.0
+        ]
+      },
+      "round_first_reaches_90pct_male": {
+        "mean": 3.0,
+        "ci95": [
+          3.0,
+          3.0
+        ],
+        "n": 80
+      }
+    }
+  },
+  "scene2": {
+    "small": {
+      "neutral": {
+        "runs": 60,
+        "former_male_homophily_pct": {
+          "mean": 72.702,
+          "ci95": [
+            71.653,
+            73.713
+          ],
+          "n": 60
+        },
+        "former_female_homophily_pct": {
+          "mean": 71.655,
+          "ci95": [
+            70.528,
+            72.76
+          ],
+          "n": 60
+        },
+        "late_blue_council_pct": {
+          "mean": 76.236,
+          "ci95": [
+            71.652,
+            80.375
+          ],
+          "n": 60
+        },
+        "blue_vs_pink": {
+          "p_seat_group_a_pct": 30.323,
+          "p_seat_group_b_pct": 9.56,
+          "likelihood_ratio": 3.172,
+          "ratio_ci95": [
+            2.507,
+            4.011
+          ]
+        },
+        "former_male_vs_former_female": {
+          "p_seat_group_a_pct": 29.396,
+          "p_seat_group_b_pct": 10.604,
+          "likelihood_ratio": 2.772,
+          "ratio_ci95": [
+            2.283,
+            3.398
+          ]
+        },
+        "late_former_male_council_pct": {
+          "mean": 73.491,
+          "ci95": [
+            69.375,
+            77.325
+          ],
+          "n": 60
+        }
+      },
+      "aligned": {
+        "runs": 60,
+        "former_male_homophily_pct": {
+          "mean": 85.555,
+          "ci95": [
+            84.68,
+            86.385
+          ],
+          "n": 60
+        },
+        "former_female_homophily_pct": {
+          "mean": 85.7,
+          "ci95": [
+            84.915,
+            86.432
+          ],
+          "n": 60
+        },
+        "late_blue_council_pct": {
+          "mean": 92.139,
+          "ci95": [
+            90.819,
+            93.347
+          ],
+          "n": 60
+        },
+        "blue_vs_pink": {
+          "p_seat_group_a_pct": 37.228,
+          "p_seat_group_b_pct": 3.113,
+          "likelihood_ratio": 11.958,
+          "ratio_ci95": [
+            10.129,
+            14.227
+          ]
+        },
+        "former_male_vs_former_female": {
+          "p_seat_group_a_pct": 37.907,
+          "p_seat_group_b_pct": 2.093,
+          "likelihood_ratio": 18.115,
+          "ratio_ci95": [
+            14.629,
+            22.815
+          ]
+        },
+        "late_former_male_council_pct": {
+          "mean": 94.769,
+          "ci95": [
+            93.542,
+            95.806
+          ],
+          "n": 60
+        }
+      },
+      "inverted": {
+        "runs": 60,
+        "former_male_homophily_pct": {
+          "mean": 84.423,
+          "ci95": [
+            83.29,
+            85.467
+          ],
+          "n": 60
+        },
+        "former_female_homophily_pct": {
+          "mean": 84.745,
+          "ci95": [
+            83.737,
+            85.718
+          ],
+          "n": 60
+        },
+        "late_blue_council_pct": {
+          "mean": 89.093,
+          "ci95": [
+            86.977,
+            90.963
+          ],
+          "n": 60
+        },
+        "blue_vs_pink": {
+          "p_seat_group_a_pct": 35.828,
+          "p_seat_group_b_pct": 4.34,
+          "likelihood_ratio": 8.256,
+          "ratio_ci95": [
+            6.808,
+            10.096
+          ]
+        },
+        "former_male_vs_former_female": {
+          "p_seat_group_a_pct": 36.88,
+          "p_seat_group_b_pct": 3.12,
+          "likelihood_ratio": 11.819,
+          "ratio_ci95": [
+            8.867,
+            15.757
+          ]
+        },
+        "late_former_male_council_pct": {
+          "mean": 92.199,
+          "ci95": [
+            89.847,
+            94.028
+          ],
+          "n": 60
+        }
+      }
+    },
+    "large": {
+      "neutral": {
+        "runs": 60,
+        "former_male_homophily_pct": {
+          "mean": 72.259,
+          "ci95": [
+            71.887,
+            72.621
+          ],
+          "n": 60
+        },
+        "former_female_homophily_pct": {
+          "mean": 71.946,
+          "ci95": [
+            71.631,
+            72.265
+          ],
+          "n": 60
+        },
+        "late_blue_council_pct": {
+          "mean": 80.987,
+          "ci95": [
+            79.419,
+            82.326
+          ],
+          "n": 60
+        },
+        "blue_vs_pink": {
+          "p_seat_group_a_pct": 32.443,
+          "p_seat_group_b_pct": 7.594,
+          "likelihood_ratio": 4.272,
+          "ratio_ci95": [
+            3.875,
+            4.673
+          ]
+        },
+        "former_male_vs_former_female": {
+          "p_seat_group_a_pct": 30.919,
+          "p_seat_group_b_pct": 9.081,
+          "likelihood_ratio": 3.405,
+          "ratio_ci95": [
+            3.134,
+            3.68
+          ]
+        },
+        "late_former_male_council_pct": {
+          "mean": 77.297,
+          "ci95": [
+            75.809,
+            78.565
+          ],
+          "n": 60
+        }
+      },
+      "aligned": {
+        "runs": 60,
+        "former_male_homophily_pct": {
+          "mean": 85.088,
+          "ci95": [
+            84.862,
+            85.314
+          ],
+          "n": 60
+        },
+        "former_female_homophily_pct": {
+          "mean": 85.297,
+          "ci95": [
+            85.052,
+            85.541
+          ],
+          "n": 60
+        },
+        "late_blue_council_pct": {
+          "mean": 92.903,
+          "ci95": [
+            92.512,
+            93.271
+          ],
+          "n": 60
+        },
+        "blue_vs_pink": {
+          "p_seat_group_a_pct": 37.212,
+          "p_seat_group_b_pct": 2.835,
+          "likelihood_ratio": 13.127,
+          "ratio_ci95": [
+            12.458,
+            13.829
+          ]
+        },
+        "former_male_vs_former_female": {
+          "p_seat_group_a_pct": 38.126,
+          "p_seat_group_b_pct": 1.874,
+          "likelihood_ratio": 20.35,
+          "ratio_ci95": [
+            19.232,
+            21.486
+          ]
+        },
+        "late_former_male_council_pct": {
+          "mean": 95.316,
+          "ci95": [
+            95.067,
+            95.559
+          ],
+          "n": 60
+        }
+      },
+      "inverted": {
+        "runs": 60,
+        "former_male_homophily_pct": {
+          "mean": 85.348,
+          "ci95": [
+            85.069,
+            85.626
+          ],
+          "n": 60
+        },
+        "former_female_homophily_pct": {
+          "mean": 85.293,
+          "ci95": [
+            85.032,
+            85.54
+          ],
+          "n": 60
+        },
+        "late_blue_council_pct": {
+          "mean": 92.902,
+          "ci95": [
+            92.606,
+            93.201
+          ],
+          "n": 60
+        },
+        "blue_vs_pink": {
+          "p_seat_group_a_pct": 37.092,
+          "p_seat_group_b_pct": 2.845,
+          "likelihood_ratio": 13.039,
+          "ratio_ci95": [
+            12.485,
+            13.616
+          ]
+        },
+        "former_male_vs_former_female": {
+          "p_seat_group_a_pct": 38.22,
+          "p_seat_group_b_pct": 1.78,
+          "likelihood_ratio": 21.477,
+          "ratio_ci95": [
+            20.233,
+            22.86
+          ]
+        },
+        "late_former_male_council_pct": {
+          "mean": 95.551,
+          "ci95": [
+            95.3,
+            95.794
+          ],
+          "n": 60
+        }
+      }
+    }
+  },
+  "scene3": {
+    "small": {
+      "random": {
+        "runs": 40,
+        "end_abs_council_imbalance_pp": {
+          "mean": 41.375,
+          "ci95": [
+            37.5,
+            44.875
+          ],
+          "n": 40
+        },
+        "blue_heavy": {
+          "count": 22,
+          "n": 40,
+          "pct": 55.0,
+          "ci95_pct": [
+            39.83,
+            69.29
+          ]
+        },
+        "pink_heavy": {
+          "count": 16,
+          "n": 40,
+          "pct": 40.0,
+          "ci95_pct": [
+            26.35,
+            55.4
+          ]
+        },
+        "end_city_blue_pct": {
+          "mean": 48.7,
+          "ci95": [
+            46.625,
+            50.775
+          ],
+          "n": 40
+        },
+        "end_abs_representation_gap_pp": {
+          "mean": 42.075,
+          "ci95": [
+            37.324,
+            46.5
+          ],
+          "n": 40
+        },
+        "late_extreme_council_time_pct": {
+          "mean": 81.393,
+          "ci95": [
+            73.238,
+            88.567
+          ],
+          "n": 40
+        },
+        "runs_with_late_parity_crossing": {
+          "count": 10,
+          "n": 40,
+          "pct": 25.0,
+          "ci95_pct": [
+            14.19,
+            40.19
+          ]
+        },
+        "initial_abs_colour_animal_correlation": {
+          "mean": 0.087,
+          "ci95": [
+            0.069,
+            0.105
+          ],
+          "n": 40
+        },
+        "end_abs_colour_animal_correlation": {
+          "mean": 0.17,
+          "ci95": [
+            0.137,
+            0.204
+          ],
+          "n": 40
+        },
+        "correlation_sign_positive": {
+          "count": 23,
+          "n": 40,
+          "pct": 57.5,
+          "ci95_pct": [
+            42.2,
+            71.49
+          ]
+        },
+        "end_abs_animal_gap": {
+          "mean": 14.715,
+          "ci95": [
+            11.98,
+            17.667
+          ],
+          "n": 40
+        },
+        "end_same_colour_friendship_pct": {
+          "mean": 85.786,
+          "ci95": [
+            84.697,
+            86.849
+          ],
+          "n": 40
+        }
+      },
+      "inherited": {
+        "runs": 40,
+        "end_abs_council_imbalance_pp": {
+          "mean": 46.5,
+          "ci95": [
+            43.625,
+            48.875
+          ],
+          "n": 40
+        },
+        "blue_heavy": {
+          "count": 18,
+          "n": 40,
+          "pct": 45.0,
+          "ci95_pct": [
+            30.71,
+            60.17
+          ]
+        },
+        "pink_heavy": {
+          "count": 21,
+          "n": 40,
+          "pct": 52.5,
+          "ci95_pct": [
+            37.5,
+            67.06
+          ]
+        },
+        "end_city_blue_pct": {
+          "mean": 49.25,
+          "ci95": [
+            45.399,
+            53.025
+          ],
+          "n": 40
+        },
+        "end_abs_representation_gap_pp": {
+          "mean": 44.2,
+          "ci95": [
+            39.65,
+            48.551
+          ],
+          "n": 40
+        },
+        "late_extreme_council_time_pct": {
+          "mean": 85.861,
+          "ci95": [
+            80.041,
+            91.066
+          ],
+          "n": 40
+        },
+        "runs_with_late_parity_crossing": {
+          "count": 13,
+          "n": 40,
+          "pct": 32.5,
+          "ci95_pct": [
+            20.08,
+            47.98
+          ]
+        },
+        "initial_abs_colour_animal_correlation": {
+          "mean": 0.073,
+          "ci95": [
+            0.056,
+            0.091
+          ],
+          "n": 40
+        },
+        "end_abs_colour_animal_correlation": {
+          "mean": 0.69,
+          "ci95": [
+            0.613,
+            0.765
+          ],
+          "n": 40
+        },
+        "correlation_sign_positive": {
+          "count": 22,
+          "n": 40,
+          "pct": 55.0,
+          "ci95_pct": [
+            39.83,
+            69.29
+          ]
+        },
+        "end_abs_animal_gap": {
+          "mean": 61.963,
+          "ci95": [
+            54.947,
+            68.841
+          ],
+          "n": 40
+        },
+        "end_same_colour_friendship_pct": {
+          "mean": 89.535,
+          "ci95": [
+            88.571,
+            90.524
+          ],
+          "n": 40
+        }
+      }
+    },
+    "large": {
+      "random": {
+        "runs": 16,
+        "end_abs_council_imbalance_pp": {
+          "mean": 41.938,
+          "ci95": [
+            38.062,
+            45.562
+          ],
+          "n": 16
+        },
+        "blue_heavy": {
+          "count": 6,
+          "n": 16,
+          "pct": 37.5,
+          "ci95_pct": [
+            18.48,
+            61.36
+          ]
+        },
+        "pink_heavy": {
+          "count": 10,
+          "n": 16,
+          "pct": 62.5,
+          "ci95_pct": [
+            38.64,
+            81.52
+          ]
+        },
+        "end_city_blue_pct": {
+          "mean": 51.325,
+          "ci95": [
+            49.694,
+            53.044
+          ],
+          "n": 16
+        },
+        "end_abs_representation_gap_pp": {
+          "mean": 40.987,
+          "ci95": [
+            36.525,
+            45.288
+          ],
+          "n": 16
+        },
+        "late_extreme_council_time_pct": {
+          "mean": 77.459,
+          "ci95": [
+            60.451,
+            92.623
+          ],
+          "n": 16
+        },
+        "runs_with_late_parity_crossing": {
+          "count": 3,
+          "n": 16,
+          "pct": 18.75,
+          "ci95_pct": [
+            6.59,
+            43.01
+          ]
+        },
+        "initial_abs_colour_animal_correlation": {
+          "mean": 0.029,
+          "ci95": [
+            0.019,
+            0.04
+          ],
+          "n": 16
+        },
+        "end_abs_colour_animal_correlation": {
+          "mean": 0.039,
+          "ci95": [
+            0.027,
+            0.053
+          ],
+          "n": 16
+        },
+        "correlation_sign_positive": {
+          "count": 8,
+          "n": 16,
+          "pct": 50.0,
+          "ci95_pct": [
+            28.0,
+            72.0
+          ]
+        },
+        "end_abs_animal_gap": {
+          "mean": 3.803,
+          "ci95": [
+            2.319,
+            5.436
+          ],
+          "n": 16
+        },
+        "end_same_colour_friendship_pct": {
+          "mean": 85.188,
+          "ci95": [
+            84.671,
+            85.704
+          ],
+          "n": 16
+        }
+      },
+      "inherited": {
+        "runs": 16,
+        "end_abs_council_imbalance_pp": {
+          "mean": 37.531,
+          "ci95": [
+            31.906,
+            42.594
+          ],
+          "n": 16
+        },
+        "blue_heavy": {
+          "count": 10,
+          "n": 16,
+          "pct": 62.5,
+          "ci95_pct": [
+            38.64,
+            81.52
+          ]
+        },
+        "pink_heavy": {
+          "count": 6,
+          "n": 16,
+          "pct": 37.5,
+          "ci95_pct": [
+            18.48,
+            61.36
+          ]
+        },
+        "end_city_blue_pct": {
+          "mean": 49.881,
+          "ci95": [
+            46.831,
+            53.025
+          ],
+          "n": 16
+        },
+        "end_abs_representation_gap_pp": {
+          "mean": 38.188,
+          "ci95": [
+            31.705,
+            44.356
+          ],
+          "n": 16
+        },
+        "late_extreme_council_time_pct": {
+          "mean": 51.639,
+          "ci95": [
+            34.734,
+            68.445
+          ],
+          "n": 16
+        },
+        "runs_with_late_parity_crossing": {
+          "count": 3,
+          "n": 16,
+          "pct": 18.75,
+          "ci95_pct": [
+            6.59,
+            43.01
+          ]
+        },
+        "initial_abs_colour_animal_correlation": {
+          "mean": 0.023,
+          "ci95": [
+            0.017,
+            0.03
+          ],
+          "n": 16
+        },
+        "end_abs_colour_animal_correlation": {
+          "mean": 0.28,
+          "ci95": [
+            0.189,
+            0.373
+          ],
+          "n": 16
+        },
+        "correlation_sign_positive": {
+          "count": 8,
+          "n": 16,
+          "pct": 50.0,
+          "ci95_pct": [
+            28.0,
+            72.0
+          ]
+        },
+        "end_abs_animal_gap": {
+          "mean": 19.72,
+          "ci95": [
+            13.031,
+            26.369
+          ],
+          "n": 16
+        },
+        "end_same_colour_friendship_pct": {
+          "mean": 85.155,
+          "ci95": [
+            84.42,
+            85.861
+          ],
+          "n": 16
+        }
+      }
+    }
+  },
+  "scene4": {
+    "small": {
+      "random": {
+        "runs": 40,
+        "end_abs_council_imbalance_pp": {
+          "mean": 15.125,
+          "ci95": [
+            12.5,
+            17.875
+          ],
+          "n": 40
+        },
+        "end_city_blue_pct": {
+          "mean": 47.95,
+          "ci95": [
+            46.075,
+            49.75
+          ],
+          "n": 40
+        },
+        "end_abs_representation_gap_pp": {
+          "mean": 13.075,
+          "ci95": [
+            10.45,
+            15.825
+          ],
+          "n": 40
+        },
+        "blue_heavy": {
+          "count": 7,
+          "n": 40,
+          "pct": 17.5,
+          "ci95_pct": [
+            8.75,
+            31.95
+          ]
+        },
+        "pink_heavy": {
+          "count": 14,
+          "n": 40,
+          "pct": 35.0,
+          "ci95_pct": [
+            22.13,
+            50.49
+          ]
+        },
+        "end_merit_advantage_points": {
+          "mean": 62.87,
+          "ci95": [
+            61.193,
+            64.659
+          ],
+          "n": 40
+        },
+        "end_abs_colour_merit_correlation": {
+          "mean": 0.182,
+          "ci95": [
+            0.138,
+            0.231
+          ],
+          "n": 40
+        },
+        "all_final_councils_are_exact_top_merit": true
+      },
+      "inherited": {
+        "runs": 40,
+        "end_abs_council_imbalance_pp": {
+          "mean": 45.625,
+          "ci95": [
+            42.75,
+            48.0
+          ],
+          "n": 40
+        },
+        "end_city_blue_pct": {
+          "mean": 49.775,
+          "ci95": [
+            44.85,
+            54.776
+          ],
+          "n": 40
+        },
+        "end_abs_representation_gap_pp": {
+          "mean": 42.4,
+          "ci95": [
+            38.0,
+            46.65
+          ],
+          "n": 40
+        },
+        "blue_heavy": {
+          "count": 21,
+          "n": 40,
+          "pct": 52.5,
+          "ci95_pct": [
+            37.5,
+            67.06
+          ]
+        },
+        "pink_heavy": {
+          "count": 19,
+          "n": 40,
+          "pct": 47.5,
+          "ci95_pct": [
+            32.94,
+            62.5
+          ]
+        },
+        "end_merit_advantage_points": {
+          "mean": 68.364,
+          "ci95": [
+            65.484,
+            71.103
+          ],
+          "n": 40
+        },
+        "end_abs_colour_merit_correlation": {
+          "mean": 0.801,
+          "ci95": [
+            0.728,
+            0.867
+          ],
+          "n": 40
+        },
+        "all_final_councils_are_exact_top_merit": true
+      }
+    },
+    "large": {
+      "random": {
+        "runs": 16,
+        "end_abs_council_imbalance_pp": {
+          "mean": 7.906,
+          "ci95": [
+            4.937,
+            11.406
+          ],
+          "n": 16
+        },
+        "end_city_blue_pct": {
+          "mean": 50.55,
+          "ci95": [
+            46.649,
+            54.537
+          ],
+          "n": 16
+        },
+        "end_abs_representation_gap_pp": {
+          "mean": 7.044,
+          "ci95": [
+            3.962,
+            10.338
+          ],
+          "n": 16
+        },
+        "blue_heavy": {
+          "count": 2,
+          "n": 16,
+          "pct": 12.5,
+          "ci95_pct": [
+            3.5,
+            36.02
+          ]
+        },
+        "pink_heavy": {
+          "count": 2,
+          "n": 16,
+          "pct": 12.5,
+          "ci95_pct": [
+            3.5,
+            36.02
+          ]
+        },
+        "end_merit_advantage_points": {
+          "mean": 50.069,
+          "ci95": [
+            47.851,
+            52.259
+          ],
+          "n": 16
+        },
+        "end_abs_colour_merit_correlation": {
+          "mean": 0.1,
+          "ci95": [
+            0.069,
+            0.135
+          ],
+          "n": 16
+        },
+        "all_final_councils_are_exact_top_merit": true
+      },
+      "inherited": {
+        "runs": 16,
+        "end_abs_council_imbalance_pp": {
+          "mean": 31.281,
+          "ci95": [
+            23.5,
+            38.22
+          ],
+          "n": 16
+        },
+        "end_city_blue_pct": {
+          "mean": 51.375,
+          "ci95": [
+            47.362,
+            55.206
+          ],
+          "n": 16
+        },
+        "end_abs_representation_gap_pp": {
+          "mean": 32.206,
+          "ci95": [
+            26.012,
+            37.732
+          ],
+          "n": 16
+        },
+        "blue_heavy": {
+          "count": 5,
+          "n": 16,
+          "pct": 31.25,
+          "ci95_pct": [
+            14.16,
+            55.6
+          ]
+        },
+        "pink_heavy": {
+          "count": 8,
+          "n": 16,
+          "pct": 50.0,
+          "ci95_pct": [
+            28.0,
+            72.0
+          ]
+        },
+        "end_merit_advantage_points": {
+          "mean": 53.014,
+          "ci95": [
+            50.336,
+            55.479
+          ],
+          "n": 16
+        },
+        "end_abs_colour_merit_correlation": {
+          "mean": 0.573,
+          "ci95": [
+            0.462,
+            0.677
+          ],
+          "n": 16
+        },
+        "all_final_councils_are_exact_top_merit": true
+      }
+    }
+  }
+}

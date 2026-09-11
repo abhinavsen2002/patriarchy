@@ -1,0 +1,19 @@
+{
+  "mode": "inherited",
+  "years": 120,
+  "cli_seed": 42,
+  "worlds": {
+    "100": {
+      "blue": 9044,
+      "pink": 9042,
+      "blue_end_pct": 95.0,
+      "pink_end_pct": 0.0
+    },
+    "1000": {
+      "blue": 9043,
+      "pink": 9042,
+      "blue_end_pct": 88.5,
+      "pink_end_pct": 8.5
+    }
+  }
+}
