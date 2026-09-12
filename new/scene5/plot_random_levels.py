@@ -107,7 +107,7 @@ def main() -> None:
             "Mean |council blue − city blue|",
         ),
     )
-    colors = {"small": "#C45C26", "large": "#2F6FED"}
+    colors = {"small": C.C_PINK, "large": C.C_BLUE}
     labels = {"small": "N=100  (20 friends)", "large": "N=1,000  (200 friends)"}
     for ax, key, ylabel, subtitle in specs:
         for size in ("small", "large"):

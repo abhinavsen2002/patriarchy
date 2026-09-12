@@ -175,7 +175,7 @@ def plot_stats(st: dict, out: Path) -> None:
         n_m = int(male[council].sum())
         ax.text(0.02, 0.98, f"{n_m} men  ·  {len(council)-n_m} women",
                 transform=ax.transAxes, va="top", fontsize=9,
-                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.8"))
+                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec=C.C_GREY))
 
     scatter(fig.add_subplot(gs[0, 0]), st["hist_rep"][0], "Council at start (60% men)")
     scatter(fig.add_subplot(gs[0, 1]), st["hist_rep"][-1], f"Council after {N_ROUNDS} elections")
@@ -184,8 +184,8 @@ def plot_stats(st: dict, out: Path) -> None:
     t = np.arange(N_ROUNDS + 1)
     for p in st["paths"][:N_PATHS]:
         ax.plot(t, p, color=C.C_MALE, lw=1.0, alpha=0.18)
-    ax.plot(t, st["paths"].mean(0), color="black", lw=1.5, ls="--", label="mean of runs")
-    ax.axhline(60, color="0.45", ls=":", label="start (60%)")
+    ax.plot(t, st["paths"].mean(0), color=C.C_GREY, lw=1.5, ls="--", label="mean of runs")
+    ax.axhline(60, color=C.C_GREY, ls=":", label="start (60%)")
     ax.axhline(50, color=C.C_FEMALE, ls=":", label="parity (50%)")
     ax.set_xlabel("Election round")
     ax.set_ylabel("% of council who are men")
@@ -218,16 +218,16 @@ def plot_stats(st: dict, out: Path) -> None:
     ]
     y = 0.92
     for title, head, detail in lines:
-        ax.text(0.0, y, title.upper(), fontsize=7.5, color="0.35", fontweight="bold", va="top")
+        ax.text(0.0, y, title.upper(), fontsize=7.5, color=C.C_GREY, fontweight="bold", va="top")
         y -= 0.08
-        ax.text(0.0, y, head, fontsize=13, color="0.1", fontweight="bold", va="top")
+        ax.text(0.0, y, head, fontsize=13, color=C.C_GREY, fontweight="bold", va="top")
         y -= 0.08
-        ax.text(0.0, y, detail, fontsize=8.5, color="0.25", va="top")
+        ax.text(0.0, y, detail, fontsize=8.5, color=C.C_GREY, va="top")
         y -= 0.14
     fig.legend(handles=[
         Line2D([0], [0], marker="o", color="w", markerfacecolor=C.C_MALE, markersize=8, label="men"),
         Line2D([0], [0], marker="o", color="w", markerfacecolor=C.C_FEMALE, markersize=8, label="women"),
-        Line2D([0], [0], marker="o", color="w", markerfacecolor="0.7",
+        Line2D([0], [0], marker="o", color="w", markerfacecolor=C.C_GREY,
                markeredgecolor="black", markersize=9, label="on the council"),
     ], loc="upper right", frameon=False, ncol=3, bbox_to_anchor=(0.97, 0.91), fontsize=9)
     fig.savefig(out, dpi=150)

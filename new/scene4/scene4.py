@@ -312,8 +312,8 @@ def plot_stats(
                 lw=0.9,
                 alpha=0.3,
             )
-        ax.plot(t, stats["blue"].mean(axis=0), color="black", lw=1.8)
-        ax.axhline(50, color="0.4", ls="--", lw=1)
+        ax.plot(t, stats["blue"].mean(axis=0), color=C.C_GREY, lw=1.8)
+        ax.axhline(50, color=C.C_GREY, ls="--", lw=1)
         ax.set_ylim(0, 100)
         ax.set_xlabel("Year")
         ax.set_ylabel("% council blue")
@@ -324,8 +324,8 @@ def plot_stats(
 
         ax = fig.add_subplot(gs[2, col])
         for path in stats["gap"]:
-            ax.plot(t, path, color="0.5", lw=0.8, alpha=0.25)
-        ax.plot(t, stats["gap"].mean(axis=0), color="black", lw=1.8)
+            ax.plot(t, path, color=C.C_GREY, lw=0.8, alpha=0.25)
+        ax.plot(t, stats["gap"].mean(axis=0), color=C.C_GREY, lw=1.8)
         ax.set_xlabel("Year")
         ax.set_ylabel("Council mean merit − city mean merit")
         ax.set_title(

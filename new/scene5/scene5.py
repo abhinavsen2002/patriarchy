@@ -589,7 +589,7 @@ def animate_comparison(size: str, seed: int, out: Path) -> None:
         )
         lines.append(line)
         city_line, = axes_path[row].plot(
-            [], [], color=C.DARK_TEXT, lw=1.5, ls="--", alpha=0.8
+            [], [], color=C.C_GREY, lw=1.5, ls="--", alpha=0.8
         )
         city_lines.append(city_line)
         axes_path[row].axhline(

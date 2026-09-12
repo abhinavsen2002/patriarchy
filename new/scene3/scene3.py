@@ -175,7 +175,7 @@ def plot_stats(bundle: dict, n: int, seats: int, out: Path) -> None:
         t = np.arange(len(b["paths"][0]))
         for p in b["paths"]:
             ax.plot(t, p, color=C.C_BLUE if p[-1] >= 50 else C.C_PINK, lw=1.0, alpha=0.35)
-        ax.axhline(50, color="0.4", ls="--", lw=1)
+        ax.axhline(50, color=C.C_GREY, ls="--", lw=1)
         ax.set_ylim(0, 100)
         ax.set_xlabel("Year")
         ax.set_ylabel("% council blue")
@@ -186,12 +186,12 @@ def plot_stats(bundle: dict, n: int, seats: int, out: Path) -> None:
                 f"end |blue−50|: {s['end_abs']:.1f} pp\n"
                 f"blue-heavy: {s['frac_blue_win']*100:.0f}%  pink-heavy: {s['frac_pink_win']*100:.0f}%",
                 transform=ax.transAxes, fontsize=8,
-                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="0.8"))
+                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec=C.C_GREY))
 
         ax = fig.add_subplot(gs[1, col])
         for p in b["pol"]:
-            ax.plot(t, p, color="0.45", lw=0.9, alpha=0.3)
-        ax.plot(t, np.mean(b["pol"], 0), color="black", lw=1.6)
+            ax.plot(t, p, color=C.C_GREY, lw=0.9, alpha=0.3)
+        ax.plot(t, np.mean(b["pol"], 0), color=C.C_GREY, lw=1.6)
         ax.set_xlabel("Year")
         ax.set_ylabel("mean |colour| in the city")
         ax.set_title("Trait polarisation")
@@ -247,7 +247,7 @@ def animate_pink_run(frames, blue_shares: np.ndarray, n: int, out: Path) -> None
     ax.axhline(0, color=C.DARK_GRID, lw=0.8)
     friend_lines = LineCollection(
         growing_segments(xy, packed_friend_edges(friends0, people, viz_k, n), n, 1.0),
-        colors="#9AA8B8", linewidths=0.55, alpha=0.28, zorder=1,
+        colors=C.C_GREY, linewidths=0.55, alpha=0.28, zorder=1,
     )
     ax.add_collection(friend_lines)
     sc_p = ax.scatter(

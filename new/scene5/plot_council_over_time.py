@@ -45,7 +45,7 @@ def make_figure(size: str, out: Path) -> None:
             years, 50, council, where=council < 50,
             color=C.C_PINK_BRIGHT, alpha=0.12, linewidth=0,
         )
-        ax.plot(years, city, color=C.DARK_TEXT, lw=1.4, ls="--",
+        ax.plot(years, city, color=C.C_GREY, lw=1.4, ls="--",
                 alpha=0.85, label="whole city")
         ax.plot(years, council, color=C.C_BLUE_BRIGHT, lw=2.4,
                 label="council")

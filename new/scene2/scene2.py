@@ -181,8 +181,8 @@ def plot_stats(results: dict, n: int, seats: int, k: int, out: Path) -> None:
         was = r["snap"]["was_male"]
         council = r["snap"]["hist"][-1]
         ax = fig.add_subplot(gs[0, col])
-        ax.axvline(0, color="0.6", lw=0.7, ls="--")
-        ax.axhline(0, color="0.6", lw=0.7, ls="--")
+        ax.axvline(0, color=C.C_GREY, lw=0.7, ls="--")
+        ax.axhline(0, color=C.C_GREY, lw=0.7, ls="--")
         s = 10 if n <= 100 else 4
         ax.scatter(xy[~was, 0], xy[~was, 1], s=s, c=C.C_FEMALE, alpha=0.5, linewidths=0)
         ax.scatter(xy[was, 0], xy[was, 1], s=s, c=C.C_MALE, alpha=0.5, linewidths=0)
@@ -196,15 +196,15 @@ def plot_stats(results: dict, n: int, seats: int, k: int, out: Path) -> None:
         n_m = int(was[council].sum())
         ax.text(0.02, 0.98, f"{n_m} ex-men  ·  {seats - n_m} ex-women",
                 transform=ax.transAxes, va="top", fontsize=8,
-                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="0.8"))
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=C.C_GREY))
 
         ax = fig.add_subplot(gs[1, col])
         t = np.arange(N_ROUNDS + 1)
         for p in r["paths"][:N_PATHS]:
             ax.plot(t, p, color=C.C_MALE, lw=0.9, alpha=0.2)
-        ax.plot(t, r["paths"].mean(0), color="black", lw=1.4, ls="--")
+        ax.plot(t, r["paths"].mean(0), color=C.C_GREY, lw=1.4, ls="--")
         ax.axhline(50, color=C.C_FEMALE, ls=":", lw=1)
-        ax.axhline(100 * INIT_MALE_FRAC, color="0.5", ls=":", lw=1)
+        ax.axhline(100 * INIT_MALE_FRAC, color=C.C_GREY, ls=":", lw=1)
         ax.set_ylim(40, 105)
         ax.set_xlabel("Election round")
         ax.set_ylabel("% council ex-men" if col == 0 else "")
@@ -304,8 +304,8 @@ def plot_homophily_compare(n: int, k: int, seed: int, out: Path) -> None:
         "With animal correlation (opposite directions)\nformer men → blue & dog, former women → pink & cat",
     )
     for ax, (xy, fr, hm, hw), title in zip(axes, (left, right), titles):
-        ax.axvline(0, color="0.65", ls="--", lw=0.8)
-        ax.axhline(0, color="0.65", ls="--", lw=0.8)
+        ax.axvline(0, color=C.C_GREY, ls="--", lw=0.8)
+        ax.axhline(0, color=C.C_GREY, ls="--", lw=0.8)
         sdot = 28 if n <= 100 else 8
         ax.scatter(xy[~was, 0], xy[~was, 1], s=sdot, c=C.C_FEMALE, alpha=0.7, linewidths=0, zorder=2)
         ax.scatter(xy[was, 0], xy[was, 1], s=sdot, c=C.C_MALE, alpha=0.7, linewidths=0, zorder=2)
@@ -331,7 +331,7 @@ def plot_homophily_compare(n: int, k: int, seed: int, out: Path) -> None:
             f"Avg over all ex-women: {100*hw:.0f}% of friends ex-women\n"
             f"This typical ex-man: {100*own['m']:.0f}%   typical ex-woman: {100*own['w']:.0f}%",
             transform=ax.transAxes, va="top", fontsize=9.5, fontweight="bold",
-            bbox=dict(boxstyle="round,pad=0.35", fc="white", ec="0.75", alpha=0.96),
+            bbox=dict(boxstyle="round,pad=0.35", fc="white", ec=C.C_GREY, alpha=0.96),
         )
     axes[0].set_ylabel("animal  (cat ← → dog)")
     fig.legend(handles=[
