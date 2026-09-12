@@ -27,7 +27,6 @@ how many friends you have on the current council.
 Run:
   python scene1.py
   python scene1.py --size small
-  python scene1.py --size large --no-animate
 """
 
 from __future__ import annotations
@@ -38,6 +37,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib.collections import LineCollection
 from matplotlib.gridspec import GridSpec
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator
@@ -47,10 +47,10 @@ sys.path.insert(0, str(ROOT))
 import common as C  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-N_ROUNDS = 30
+N_ROUNDS = 10
 N_RUNS = 80
 N_PATHS = 40
-EQUIL_FROM = 8
+EQUIL_FROM = 4
 INIT_MALE_FRAC = 0.60
 
 
@@ -238,63 +238,208 @@ def plot_stats(st: dict, out: Path) -> None:
 def animate(st: dict, out: Path) -> None:
     male, xy, friends, hist = st["male"], st["xy"], st["friends"], st["hist_rep"]
     n = st["n"]
-    fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.6), facecolor=C.DARK_BG,
-                             gridspec_kw={"width_ratios": [1.15, 1]})
-    ax, axp = axes
-    C.style_dark_figure(fig, axes)
-    s = 28 if n <= 100 else 10
-    ax.scatter(xy[~male, 0], xy[~male, 1], s=s, c=C.C_PINK_BRIGHT,
-               alpha=0.82, linewidths=0, zorder=2)
-    ax.scatter(xy[male, 0], xy[male, 1], s=s, c=C.C_BLUE_BRIGHT,
-               alpha=0.82, linewidths=0, zorder=2)
-    on0 = np.zeros(n, dtype=bool); on0[hist[0]] = True
-    sc_c = ax.scatter(xy[on0, 0], xy[on0, 1], s=s + 18, facecolors="none",
-                      edgecolors=C.C_COUNCIL, linewidths=1.35, zorder=4)
-    # a light sample of friendship edges
-    rng = np.random.default_rng(0)
-    sample_i = rng.choice(n, size=min(n, 80), replace=False)
-    segs = []
-    for i in sample_i:
-        for j in friends[i, : min(6, friends.shape[1])]:
-            segs.append([(xy[i, 0], xy[i, 1]), (xy[j, 0], xy[j, 1])])
-    from matplotlib.collections import LineCollection
-    lc = LineCollection(segs, colors=C.DARK_GRID, linewidths=0.4,
-                        alpha=0.55, zorder=1)
-    ax.add_collection(lc)
-    ax.set_xticks([]); ax.set_yticks([])
-    ax.set_xlim(xy[:, 0].min() - 0.3, xy[:, 0].max() + 0.3)
-    ax.set_ylim(xy[:, 1].min() - 0.3, xy[:, 1].max() + 0.3)
-    title = ax.set_title("")
-    shares = male_share(hist, male)
-    line, = axp.plot([], [], color=C.C_BLUE_BRIGHT, lw=2.6)
-    axp.axhline(50, color=C.C_PINK_BRIGHT, ls=":", lw=1.2, alpha=0.8)
-    axp.axhline(60, color=C.C_COUNCIL, ls="--", lw=1.0, alpha=0.7)
-    axp.set_xlim(0, N_ROUNDS)
-    axp.set_ylim(35, 105)
-    axp.set_xlabel("Election round")
-    axp.set_ylabel("% men on council")
-    fig.suptitle("Scene 1  ·  a small majority compounds into total control",
-                 color=C.DARK_TEXT, fontsize=14, fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    black = "#000000"
+    fig = plt.figure(figsize=(16, 9), facecolor=black)
+    ax = fig.add_axes([0, 0, 1, 1], facecolor=black)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_axis_off()
 
-    def update(t):
-        on = np.zeros(n, dtype=bool); on[hist[t]] = True
-        sc_c.set_offsets(xy[on])
-        nm = int(male[hist[t]].sum())
-        title.set_text(f"Round {t}  ·  {nm} men, {len(hist[t])-nm} women")
-        line.set_data(np.arange(t + 1), shares[: t + 1])
-        return sc_c, title, line
+    # Keep the city below and reserve the top of the frame for office-holders.
+    base = xy.copy()
+    base[:, 0] = 0.08 + 0.84 * (
+        (base[:, 0] - base[:, 0].min()) / max(np.ptp(base[:, 0]), 1e-9)
+    )
+    base[:, 1] = 0.10 + 0.48 * (
+        (base[:, 1] - base[:, 1].min()) / max(np.ptp(base[:, 1]), 1e-9)
+    )
+    seats = len(hist[0])
+    per_row = seats if seats <= 40 else 50
+    rows = int(np.ceil(seats / per_row))
+    slots = []
+    for row in range(rows):
+        count = min(per_row, seats - row * per_row)
+        y = 0.84 if rows == 1 else 0.72 + 0.20 * row / max(rows - 1, 1)
+        slots.extend(zip(np.linspace(0.08, 0.92, count), np.full(count, y)))
+    slots = np.asarray(slots)
 
-    anim = FuncAnimation(fig, update, frames=len(hist), interval=350, blit=False)
-    C.save_mp4(anim, out, fps=4)
+    def positions_for(council):
+        pos = base.copy()
+        pos[np.sort(council)] = slots
+        return pos
+
+    def nomination_pairs(council):
+        # All nominations are visible in the small city. The large-city view
+        # samples three per leader so 40,000 lines do not become a solid block.
+        shown = friends[council] if n <= 100 else friends[council, :3]
+        src = np.repeat(council, shown.shape[1])
+        return src, shown.ravel()
+
+    def segments(pos, src, dst, progress):
+        start = pos[src]
+        end = start + progress * (pos[dst] - start)
+        return np.stack((start, end), axis=1)
+
+    dot_size = 54 if n <= 100 else 11
+    pos0 = positions_for(hist[0])
+    sc_m = ax.scatter(
+        pos0[male, 0], pos0[male, 1], s=dot_size, marker="o",
+        c=C.C_BLUE, linewidths=0, alpha=0.95, zorder=3,
+    )
+    sc_w = ax.scatter(
+        pos0[~male, 0], pos0[~male, 1], s=dot_size * 1.15, marker="^",
+        c=C.C_PINK, linewidths=0, alpha=0.95, zorder=3,
+    )
+    nomination_lines = LineCollection(
+        [], colors=C.C_GREY, linewidths=0.65 if n <= 100 else 0.35,
+        alpha=0.34, zorder=1,
+    )
+    ax.add_collection(nomination_lines)
+
+    glow_size = dot_size + (260 if n <= 100 else 55)
+    ring_size = dot_size + (75 if n <= 100 else 22)
+    current_pos = pos0[hist[0]]
+    glow_old = ax.scatter(
+        current_pos[:, 0], current_pos[:, 1], s=glow_size,
+        c=C.C_COUNCIL, alpha=0.16, linewidths=0, zorder=2,
+    )
+    ring_old = ax.scatter(
+        current_pos[:, 0], current_pos[:, 1], s=ring_size,
+        facecolors="none", edgecolors=C.C_COUNCIL,
+        linewidths=1.8 if n <= 100 else 0.8, zorder=4,
+    )
+    glow_new = ax.scatter(
+        [], [], s=glow_size, c=C.C_COUNCIL, alpha=0.0,
+        linewidths=0, zorder=2,
+    )
+    ring_new = ax.scatter(
+        [], [], s=ring_size, facecolors="none", edgecolors=C.C_COUNCIL,
+        linewidths=1.8 if n <= 100 else 0.8, alpha=0.0, zorder=4,
+    )
+
+    round_text = fig.text(
+        0.05, 0.94, "Round 0", color=C.DARK_TEXT,
+        fontsize=25, fontweight="bold", ha="left", va="center",
+    )
+    phase_text = fig.text(
+        0.05, 0.895, "Current leaders", color=C.C_GREY,
+        fontsize=14, ha="left", va="center",
+    )
+    count_text = fig.text(
+        0.95, 0.94, "", color=C.DARK_TEXT,
+        fontsize=16, fontweight="bold", ha="right", va="center",
+    )
+    fig.text(
+        0.50, 0.965, "LEADERS", color=C.C_COUNCIL,
+        fontsize=13, fontweight="bold", ha="center", va="center",
+    )
+    fig.text(
+        0.05, 0.045, "●  MEN", color=C.C_BLUE,
+        fontsize=15, fontweight="bold", ha="left",
+    )
+    fig.text(
+        0.15, 0.045, "▲  WOMEN", color=C.C_PINK,
+        fontsize=15, fontweight="bold", ha="left",
+    )
+
+    initial_hold = 18
+    nomination_frames = 20
+    nomination_hold = 8
+    transition_frames = 24
+    cycle = nomination_frames + nomination_hold + transition_frames
+
+    def smoothstep(value):
+        return value * value * (3.0 - 2.0 * value)
+
+    def set_leader_artists(old_council, new_council, old_alpha, new_alpha, pos):
+        old_xy = pos[old_council]
+        new_xy = pos[new_council]
+        glow_old.set_offsets(old_xy)
+        ring_old.set_offsets(old_xy)
+        glow_new.set_offsets(new_xy)
+        ring_new.set_offsets(new_xy)
+        glow_old.set_alpha(0.16 * old_alpha)
+        ring_old.set_alpha(old_alpha)
+        glow_new.set_alpha(0.16 * new_alpha)
+        ring_new.set_alpha(new_alpha)
+
+    def update(frame):
+        if frame < initial_hold:
+            round_index = 0
+            local = -1
+        else:
+            elapsed = frame - initial_hold
+            round_index = min(elapsed // cycle, N_ROUNDS - 1)
+            local = elapsed % cycle
+
+        current = hist[round_index]
+        nxt = hist[min(round_index + 1, N_ROUNDS)]
+        pos_current = positions_for(current)
+        pos_next = positions_for(nxt)
+        src, dst = nomination_pairs(current)
+
+        if local < 0:
+            pos = pos_current
+            nomination_lines.set_segments([])
+            set_leader_artists(current, nxt, 1.0, 0.0, pos)
+            phase = "Current leaders"
+            shown = current
+            displayed_round = 0
+        elif local < nomination_frames:
+            progress = smoothstep(local / max(nomination_frames - 1, 1))
+            pos = pos_current
+            nomination_lines.set_segments(segments(pos, src, dst, progress))
+            set_leader_artists(current, nxt, 1.0, 0.0, pos)
+            phase = "Leaders nominate people they know"
+            shown = current
+            displayed_round = round_index + 1
+        elif local < nomination_frames + nomination_hold:
+            pos = pos_current
+            nomination_lines.set_segments(segments(pos, src, dst, 1.0))
+            set_leader_artists(current, nxt, 1.0, 0.0, pos)
+            phase = "Nominees are considered"
+            shown = current
+            displayed_round = round_index + 1
+        else:
+            raw = (
+                local - nomination_frames - nomination_hold
+            ) / max(transition_frames - 1, 1)
+            progress = smoothstep(raw)
+            pos = pos_current * (1.0 - progress) + pos_next * progress
+            nomination_lines.set_segments(
+                segments(pos, src, dst, 1.0 - progress)
+            )
+            set_leader_artists(current, nxt, 1.0 - progress, progress, pos)
+            phase = "Winners become the next leaders"
+            shown = nxt if progress >= 0.5 else current
+            displayed_round = round_index + 1
+
+        sc_m.set_offsets(pos[male])
+        sc_w.set_offsets(pos[~male])
+        men = int(male[shown].sum())
+        round_text.set_text(f"Round {displayed_round}")
+        phase_text.set_text(phase)
+        count_text.set_text(f"{men} men  ·  {len(shown) - men} women")
+        return (
+            sc_m, sc_w, nomination_lines, glow_old, ring_old,
+            glow_new, ring_new, round_text, phase_text, count_text,
+        )
+
+    total_frames = initial_hold + N_ROUNDS * cycle
+    anim = FuncAnimation(
+        fig, update, frames=total_frames, interval=1000 / 24, blit=False,
+    )
+    C.save_mp4(anim, out, fps=24, bg=black)
     plt.close()
 
 
 def main():
     args = C.parse_cli("Scene 1 — Meritopolis patriarchy")
+    if args.size == "large":
+        raise SystemExit("Scene 1 is configured for the small city only (N=100).")
     print("Scene 1 — same-gender friendships, 60% male council")
     print("  election: named by sitting friends, then chosen by them")
-    for size in C.sizes_to_run(args.size):
+    for size in ("small",):
         cfg = C.SIZES[size]
         n, seats, k = cfg["n"], cfg["council"], cfg["k_friends"]
         print(f"\n[{size}] N={n}  seats={seats}  friends={k}  runs={N_RUNS}")
