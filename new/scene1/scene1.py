@@ -13,16 +13,21 @@ But this city has two problems:
 
 1. It is incredibly sexist. Men and women only form friendships with people
    of the same gender.
-2. The existing city council already has slightly more men than women:
-   60% of council members are men.
+2. The existing city council already has more men than women:
+   80% of council members are men.
 
 What happens? Because men only befriend men, a male-heavy council both
-nominates more men and then prefers those men. The 60% majority does not
+nominates more men and then prefers those men. The majority does not
 wash out — it compounds.
 
 This file simulates that election. You cannot stand unless a sitting
-member names you. Among nominees, chance of winning is proportional to
-how many friends you have on the current council.
+member names you. Among nominees, chance of winning grows with how many
+friends you have on the current council.
+
+Scene-1-only tweaks (for a clearer, slower-locking visual — no other scene
+is affected): the council starts 80% male, and the win advantage is damped
+from the shared square rule (~k^2) to a gentler ~k^1.5 via ADVANTAGE_EXPONENT
+and the local elect_soft. The animation is small-city only (N=100).
 
 Run:
   python scene1.py
@@ -51,7 +56,15 @@ N_ROUNDS = 10
 N_RUNS = 80
 N_PATHS = 40
 EQUIL_FROM = 4
-INIT_MALE_FRAC = 0.60
+INIT_MALE_FRAC = 0.80
+
+# Scene-1-only softening of the election advantage.
+# common.elect uses named × chosen, so a group that is k times larger on the
+# council wins roughly k^2 as often per person — the "square rule". For this
+# scene we damp that to about k^1.5 (a gentler 3/2 power) so the lock-in is
+# slower and easier to watch. Raising a k^2 weight to this exponent yields
+# k^(2 * 0.75) = k^1.5. This does NOT touch common.elect or any other scene.
+ADVANTAGE_EXPONENT = 0.75
 
 
 def layout_city(n: int, male: np.ndarray, rng: np.random.Generator) -> np.ndarray:
@@ -86,6 +99,28 @@ def likelihood_ratio(council: np.ndarray, male: np.ndarray) -> float:
     return float(p_m / p_w)
 
 
+def elect_soft(council: np.ndarray, friends: np.ndarray,
+               rng: np.random.Generator) -> np.ndarray:
+    """Named × chosen election, damped to a ~k^1.5 per-person advantage.
+
+    Identical to common.elect except the winning weight is raised to
+    ADVANTAGE_EXPONENT. Scene 1 uses this softer rule for readability; every
+    other scene keeps the unmodified common.elect.
+    """
+    n = friends.shape[0]
+    seats = len(council)
+    tickets = C.nominations(council, friends, n)
+    power = C.friends_in_power(council, friends, n)
+    eligible = np.flatnonzero(tickets > 0)
+    if len(eligible) < seats:
+        chosen = eligible.copy()
+        rest = np.setdiff1d(np.arange(n), chosen, assume_unique=False)
+        extra = rng.choice(rest, size=seats - len(chosen), replace=False)
+        return np.concatenate([chosen, extra])
+    weight = (tickets[eligible] * np.maximum(power[eligible], 1.0)) ** ADVANTAGE_EXPONENT
+    return C.weighted_sample(eligible, weight, seats, rng)
+
+
 def simulate_once(n, seats, k, rng) -> tuple:
     male = np.arange(n) < (n // 2)
     friends = C.random_same_group_friends(male.astype(int), k, rng)
@@ -93,7 +128,7 @@ def simulate_once(n, seats, k, rng) -> tuple:
     council = seed_council(male, seats, rng)
     history = [council.copy()]
     for _ in range(N_ROUNDS):
-        council = C.elect(council, friends, rng)
+        council = elect_soft(council, friends, rng)
         history.append(council.copy())
     return male, friends, history
 
@@ -245,27 +280,44 @@ def animate(st: dict, out: Path) -> None:
     ax.set_ylim(0, 1)
     ax.set_axis_off()
 
-    # Keep the city below and reserve the top of the frame for office-holders.
-    base = xy.copy()
-    base[:, 0] = 0.08 + 0.84 * (
-        (base[:, 0] - base[:, 0].min()) / max(np.ptp(base[:, 0]), 1e-9)
-    )
-    base[:, 1] = 0.10 + 0.48 * (
-        (base[:, 1] - base[:, 1].min()) / max(np.ptp(base[:, 1]), 1e-9)
-    )
-    seats = len(hist[0])
-    per_row = seats if seats <= 40 else 50
-    rows = int(np.ceil(seats / per_row))
-    slots = []
-    for row in range(rows):
-        count = min(per_row, seats - row * per_row)
-        y = 0.84 if rows == 1 else 0.72 + 0.20 * row / max(rows - 1, 1)
-        slots.extend(zip(np.linspace(0.08, 0.92, count), np.full(count, y)))
-    slots = np.asarray(slots)
+    # The world is split down the middle: men on the left, women on the right,
+    # with only a thin seam between them. The top of each half is reserved for
+    # that group's office-holders, who cluster in as many rows as they need.
+    MID, SEAM = 0.5, 0.015
+    CITY_TOP = 0.60
+
+    def scale(values, lo, hi):
+        span = max(np.ptp(values), 1e-9)
+        return lo + (hi - lo) * (values - values.min()) / span
+
+    base = np.zeros((n, 2))
+    base[male, 0] = scale(xy[male, 0], 0.06, MID - SEAM)
+    base[~male, 0] = scale(xy[~male, 0], MID + SEAM, 0.94)
+    base[male, 1] = scale(xy[male, 1], 0.08, CITY_TOP)
+    base[~male, 1] = scale(xy[~male, 1], 0.08, CITY_TOP)
+
+    def grid_slots(count, x0, x1, per_row):
+        """Pack ``count`` leader seats into rows filling from the top down."""
+        if count == 0:
+            return np.zeros((0, 2))
+        y_top, y_gap = 0.86, 0.055
+        out = []
+        rows = int(np.ceil(count / per_row))
+        for row in range(rows):
+            in_row = min(per_row, count - row * per_row)
+            xs = (np.linspace(x0, x1, in_row) if in_row > 1
+                  else np.array([(x0 + x1) / 2]))
+            y = y_top - row * y_gap
+            out.extend((x, y) for x in xs)
+        return np.asarray(out)
 
     def positions_for(council):
         pos = base.copy()
-        pos[np.sort(council)] = slots
+        c = np.asarray(council)
+        leaders_m = np.sort(c[male[c]])
+        leaders_w = np.sort(c[~male[c]])
+        pos[leaders_m] = grid_slots(len(leaders_m), 0.06, MID - SEAM, 6)
+        pos[leaders_w] = grid_slots(len(leaders_w), MID + SEAM, 0.94, 4)
         return pos
 
     def nomination_pairs(council):
@@ -279,6 +331,9 @@ def animate(st: dict, out: Path) -> None:
         start = pos[src]
         end = start + progress * (pos[dst] - start)
         return np.stack((start, end), axis=1)
+
+    ax.plot([MID, MID], [0.03, 0.90], color=C.C_GREY, lw=0.8,
+            alpha=0.35, zorder=0)
 
     dot_size = 54 if n <= 100 else 11
     pos0 = positions_for(hist[0])
@@ -437,7 +492,7 @@ def main():
     args = C.parse_cli("Scene 1 — Meritopolis patriarchy")
     if args.size == "large":
         raise SystemExit("Scene 1 is configured for the small city only (N=100).")
-    print("Scene 1 — same-gender friendships, 60% male council")
+    print("Scene 1 — same-gender friendships, 80% male council (softened k^1.5 rule)")
     print("  election: named by sitting friends, then chosen by them")
     for size in ("small",):
         cfg = C.SIZES[size]
