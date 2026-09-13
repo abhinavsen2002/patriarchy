@@ -31,8 +31,8 @@ DARK_PANEL = "#0B0F14"
 DARK_TEXT = "#F4F7FA"
 DARK_MUTED = C_GREY
 DARK_GRID = C_GREY
-C_BLUE_BRIGHT = C_BLUE
-C_PINK_BRIGHT = C_PINK
+C_BLUE_BRIGHT = "#5AA8E8"
+C_PINK_BRIGHT = "#F07AAE"
 C_COUNCIL = "#FFD166"
 
 
@@ -176,6 +176,35 @@ def rescale_traits(traits: np.ndarray) -> np.ndarray:
     scaled = -XY_CLIP + 2.0 * XY_CLIP * (traits - low) / safe_span
     scaled[:, (span <= 1e-12).ravel()] = 0.0
     return scaled
+
+
+def make_ambient(
+    n: int,
+    amp: float,
+    seed: int = 99,
+    period: float = 168.0,
+    freq_jitter: float = 0.22,
+    dims: int = 2,
+):
+    """Return a stable per-dot ambient offset generator.
+
+    Each dot gets a fixed random phase and a slightly detuned frequency, so
+    the whole field shimmers with small looping motion. The offsets are always
+    zero-mean sinusoids, so dots wobble in place without drifting from their
+    base location. ``amp`` is in the same units as the positions being drawn.
+    """
+    rng = np.random.default_rng(seed)
+    phase = rng.uniform(0.0, 2.0 * np.pi, size=(n, dims))
+    freq = 1.0 + freq_jitter * (rng.random((n, dims)) * 2.0 - 1.0)
+    # A mild per-dot amplitude variation keeps the motion from looking uniform.
+    amp_scale = 0.7 + 0.6 * rng.random((n, dims))
+    two_pi = 2.0 * np.pi
+
+    def offset(frame: float) -> np.ndarray:
+        t = frame / period
+        return amp * amp_scale * np.sin(two_pi * freq * t + phase)
+
+    return offset
 
 
 def save_mp4(anim, path: Path, fps: int = 8, bg: str = DARK_BG) -> None:

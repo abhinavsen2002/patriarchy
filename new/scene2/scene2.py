@@ -55,8 +55,11 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib.collections import LineCollection
 from matplotlib.gridspec import GridSpec
 from matplotlib.lines import Line2D
+from matplotlib.colors import to_rgba
+from matplotlib.patches import Circle
 from matplotlib.ticker import MaxNLocator
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,10 +71,11 @@ N_ROUNDS = 25
 N_RUNS = 60
 N_PATHS = 30
 EQUIL_FROM = 8
-INIT_MALE_FRAC = 0.80   # carried over from Scene 1: the council was 80% ex-men
+INIT_MALE_FRAC = 0.60   # same inherited start as Scene 1
 COLOUR_SHIFT = 50.0
 ANIMAL_SHIFT = 50.0
 N_TRAITS = 10           # dim 0 colour, dim 1 animal, 2..9 unbiased
+FINAL_ANIMATION_SEED = 110
 
 
 def make_traits(was_male: np.ndarray, rng: np.random.Generator, mode: str) -> np.ndarray:
@@ -344,55 +348,441 @@ def plot_homophily_compare(n: int, k: int, seed: int, out: Path) -> None:
     print(f"  homophily plot → {out}")
 
 
-def animate(results: dict, n: int, out: Path) -> None:
-    r = results["neutral"]
+def animate(results: dict, n: int, out: Path, mode: str = "neutral") -> None:
+    r = results[mode]
     xy, friends, hist = r["snap"]["xy"], r["snap"]["friends"], r["snap"]["hist"]
-    was = r["snap"]["was_male"]
-    fig, axes = plt.subplots(1, 2, figsize=(12.2, 5.5), facecolor=C.DARK_BG)
-    ax, axp = axes
-    C.style_dark_figure(fig, axes)
-    s = 22 if n <= 100 else 8
-    ax.axvline(0, color=C.DARK_GRID, ls="--", lw=0.8)
-    ax.axhline(0, color=C.DARK_GRID, ls="--", lw=0.8)
-    ax.scatter(xy[~was, 0], xy[~was, 1], s=s, c=C.C_PINK_BRIGHT,
-               alpha=0.72, linewidths=0, zorder=2)
-    ax.scatter(xy[was, 0], xy[was, 1], s=s, c=C.C_BLUE_BRIGHT,
-               alpha=0.72, linewidths=0, zorder=2)
-    on = np.zeros(n, dtype=bool); on[hist[0]] = True
-    sc_c = ax.scatter(xy[on, 0], xy[on, 1], s=s + 18, facecolors="none",
-                      edgecolors=C.C_COUNCIL, linewidths=1.25, zorder=4)
-    from matplotlib.collections import LineCollection
+    black = "#000000"
+    fig = plt.figure(figsize=(16, 9), facecolor=black)
+    ax = fig.add_axes([0.255, 0.14, 0.49, 0.72])
+    C.style_dark_axis(ax, grid=False)
+    fig.patch.set_facecolor(black)
+    ax.set_facecolor(black)
+    s = 36 if n <= 100 else 10
+    blue = xy[:, 0] > 0
+    ax.axvline(0, color=C.C_GREY, lw=0.8)
+    ax.axhline(0, color=C.C_GREY, lw=0.8)
+
     rng = np.random.default_rng(1)
-    sample = rng.choice(n, size=min(n, 70), replace=False)
-    segs = [[xy[i, :2], xy[j, :2]] for i in sample for j in friends[i, :4]]
-    ax.add_collection(LineCollection(
-        segs, colors=C.DARK_GRID, linewidths=0.35, alpha=0.48, zorder=1
-    ))
-    ax.set_xlim(-105, 105); ax.set_ylim(-105, 105); ax.set_aspect("equal")
-    ax.set_xlabel("colour (pink ← → blue)")
-    ax.set_ylabel("animal (cat ← → dog)")
-    title = ax.set_title("")
-    shares = r["paths"][0]
-    line, = axp.plot([], [], color=C.C_BLUE_BRIGHT, lw=2.6)
-    axp.axhline(50, color=C.C_PINK_BRIGHT, ls=":", alpha=0.8)
-    axp.axhline(100 * INIT_MALE_FRAC, color=C.C_COUNCIL, ls="--", alpha=0.7)
-    axp.set_xlim(0, N_ROUNDS); axp.set_ylim(40, 105)
-    axp.set_xlabel("Election round"); axp.set_ylabel("% council ex-men")
-    fig.suptitle(f"Scene 2 — colour stereotype only  ·  N={n}  ·  former-gender view",
-                 color=C.DARK_TEXT, fontsize=14, fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    src = np.repeat(np.arange(n), friends.shape[1])
+    dst = friends.ravel()
+    packed = np.minimum(src, dst).astype(np.int64) * n + np.maximum(src, dst)
+    packed = np.unique(packed)
+    src, dst = packed // n, packed % n
+    keep = rng.random(len(src)) < 0.40
+    src, dst = src[keep], dst[keep]
+    segs = np.stack((xy[src, :2], xy[dst, :2]), axis=1)
+    dist = np.linalg.norm(xy[src, :2] - xy[dst, :2], axis=1)
+    scale = max(float(np.percentile(dist, 85)), 1.0)
+    closeness = np.clip(1.0 - dist / scale, 0.0, 1.0)
+    brightness = np.clip(
+        0.04 + 0.42 * closeness * rng.uniform(0.55, 1.45, size=len(src)),
+        0.03,
+        0.58,
+    )
+    from matplotlib.colors import to_rgba
+    colours = np.tile(np.asarray(to_rgba(C.C_GREY)), (len(src), 1))
+    colours[:, 3] = brightness
+    friend_lines = LineCollection(
+        segs,
+        colors=colours,
+        linewidths=0.30 + 1.15 * closeness,
+        zorder=1,
+    )
+    ax.add_collection(friend_lines)
+    sc_p = ax.scatter(
+        xy[~blue, 0], xy[~blue, 1], s=s, c=C.C_PINK_BRIGHT,
+        alpha=0.82, linewidths=0, zorder=2,
+    )
+    sc_b = ax.scatter(
+        xy[blue, 0], xy[blue, 1], s=s, c=C.C_BLUE_BRIGHT,
+        alpha=0.82, linewidths=0, zorder=2,
+    )
+    on = np.zeros(n, dtype=bool)
+    on[hist[0]] = True
+    glow = ax.scatter(
+        xy[on, 0], xy[on, 1], s=s + (260 if n <= 100 else 55),
+        c=C.C_COUNCIL, alpha=0.16, linewidths=0, zorder=3,
+    )
+    sc_c = ax.scatter(
+        xy[on, 0], xy[on, 1], s=s + (75 if n <= 100 else 22),
+        facecolors="none", edgecolors=C.C_COUNCIL,
+        linewidths=1.8 if n <= 100 else 0.9, zorder=4,
+    )
+    ax.set_xlim(-105, 105)
+    ax.set_ylim(-105, 105)
+    ax.set_aspect("equal")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_visible(False)
 
-    def update(t):
-        on = np.zeros(n, dtype=bool); on[hist[t]] = True
-        sc_c.set_offsets(xy[on, :2])
-        nm = int(was[hist[t]].sum())
-        title.set_text(f"Round {t}  ·  {nm} ex-men, {len(hist[t])-nm} ex-women")
-        line.set_data(np.arange(t + 1), shares[: t + 1])
-        return sc_c, title, line
+    label = dict(
+        color=C.DARK_TEXT, fontsize=22, fontweight="bold",
+        transform=ax.transAxes, clip_on=False,
+    )
+    ax.text(-0.03, 0.50, "Pink", ha="right", va="center", **label)
+    ax.text(1.03, 0.50, "Blue", ha="left", va="center", **label)
+    ax.text(0.50, -0.03, "Cat", ha="center", va="top", **label)
+    ax.text(0.50, 1.03, "Dog", ha="center", va="bottom", **label)
 
-    anim = FuncAnimation(fig, update, frames=len(hist), interval=350, blit=False)
-    C.save_mp4(anim, out, fps=4)
+    year_text = fig.text(
+        0.05, 0.90, "Year 0", color=C.DARK_TEXT, fontsize=26,
+        fontweight="bold", ha="left", va="center",
+    )
+
+    n_rounds = len(hist) - 1
+    sub = 8
+    ambient = C.make_ambient(n, amp=0.22, seed=23, period=168.0)
+
+    def update(f):
+        seg = min(f / sub, n_rounds)
+        t0 = int(np.floor(seg))
+        t1 = min(t0 + 1, n_rounds)
+        u = seg - t0
+        ease = u * u * (3.0 - 2.0 * u)
+        council = hist[t1 if ease >= 0.5 else t0]
+        moved = xy[:, :2] + ambient(f)
+        sc_p.set_offsets(moved[~blue])
+        sc_b.set_offsets(moved[blue])
+        friend_lines.set_segments(
+            np.stack((moved[src], moved[dst]), axis=1)
+        )
+        on = np.zeros(n, dtype=bool)
+        on[council] = True
+        glow.set_offsets(moved[on])
+        sc_c.set_offsets(moved[on])
+        year_text.set_text(f"Year {int(round(seg))}")
+        return sc_p, sc_b, friend_lines, glow, sc_c, year_text
+
+    anim = FuncAnimation(
+        fig, update, frames=n_rounds * sub + 1, interval=1000 / 24, blit=False,
+    )
+    C.save_mp4(anim, out, fps=24, bg=black)
     plt.close()
+
+
+def animate_final_sequence(
+    neutral: dict,
+    biased: dict,
+    n: int,
+    out: Path,
+) -> None:
+    """One narrated sequence: inherited colour bias, then colour + animal."""
+    black = "#000000"
+    fps = 24
+    xy0 = neutral["snap"]["xy"]
+    xy1 = biased["snap"]["xy"]
+    hist0 = neutral["snap"]["hist"]
+    council0 = hist0[0]
+    year5 = min(5, len(hist0) - 1)
+    council_year5 = hist0[year5]
+    friends0 = neutral["snap"]["friends"]
+    friends1 = biased["snap"]["friends"]
+    was_male = np.asarray(neutral["snap"]["was_male"], dtype=bool)
+    blue = xy0[:, 0] > 0
+    pink_rgba = np.asarray(to_rgba(C.C_PINK_BRIGHT))
+    blue_rgba = np.asarray(to_rgba(C.C_BLUE_BRIGHT))
+    colour_cols = np.where(blue[:, None], blue_rgba, pink_rgba)
+
+    fig = plt.figure(figsize=(16, 9), facecolor=black)
+    ax = fig.add_axes([0.255, 0.14, 0.49, 0.72])
+    C.style_dark_axis(ax, grid=False)
+    fig.patch.set_facecolor(black)
+    ax.set_facecolor(black)
+    ax.axvline(0, color=C.C_GREY, lw=0.8, alpha=0.7)
+    ax.axhline(0, color=C.C_GREY, lw=0.8, alpha=0.7)
+    ax.set_xlim(-105, 105)
+    ax.set_ylim(-105, 105)
+    ax.set_aspect("equal")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    label = dict(
+        color=C.DARK_TEXT, fontsize=22, fontweight="bold",
+        transform=ax.transAxes, clip_on=False,
+    )
+    ax.text(-0.03, 0.50, "Pink", ha="right", va="center", **label)
+    ax.text(1.03, 0.50, "Blue", ha="left", va="center", **label)
+    ax.text(0.50, -0.03, "Cat", ha="center", va="top", **label)
+    ax.text(0.50, 1.03, "Dog", ha="center", va="bottom", **label)
+
+    def packed_edges(friends):
+        src = np.repeat(np.arange(n), friends.shape[1])
+        dst = friends.ravel()
+        lo = np.minimum(src, dst).astype(np.int64)
+        hi = np.maximum(src, dst).astype(np.int64)
+        packed = np.unique(lo * n + hi)
+        keep = (
+            ((packed * 2654435761) % (2 ** 32)) / (2 ** 32)
+            < 0.40
+        )
+        packed = packed[keep]
+        return packed // n, packed % n, packed
+
+    def edge_style(xy, src, dst, packed):
+        dist = np.linalg.norm(xy[src, :2] - xy[dst, :2], axis=1)
+        scale = max(
+            float(np.percentile(dist, 85)) if len(dist) else 1.0, 1.0
+        )
+        closeness = np.clip(1.0 - dist / scale, 0.0, 1.0)
+        noise = 0.55 + 0.90 * (
+            ((packed * 1103515245 + 12345) % (2 ** 31)) / (2 ** 31)
+        )
+        brightness = np.clip(
+            0.04 + 0.42 * closeness * noise, 0.03, 0.58
+        )
+        colours = np.tile(
+            np.asarray(to_rgba(C.C_GREY)), (len(src), 1)
+        )
+        colours[:, 3] = brightness
+        return colours, 0.30 + 1.15 * closeness
+
+    src0, dst0, packed0 = packed_edges(friends0)
+    src1, dst1, packed1 = packed_edges(friends1)
+    colours0, widths0 = edge_style(xy0, src0, dst0, packed0)
+    colours1, widths1 = edge_style(xy1, src1, dst1, packed1)
+    delays = np.random.default_rng(19).uniform(0.0, 0.55, len(src0))
+
+    friend_lines = LineCollection([], zorder=1)
+    ax.add_collection(friend_lines)
+    dot_size = 36 if n <= 100 else 10
+    people = ax.scatter(
+        xy0[:, 0], xy0[:, 1], s=dot_size,
+        c=colour_cols, linewidths=0, zorder=2,
+    )
+    men_ring = ax.scatter(
+        [], [], s=dot_size + 48, facecolors="none",
+        edgecolors=C.DARK_TEXT, linewidths=1.3, alpha=0.0, zorder=3.5,
+    )
+    glow = ax.scatter(
+        [], [], s=dot_size + 260, c=C.C_COUNCIL,
+        alpha=0.0, linewidths=0, zorder=3,
+    )
+    council_rings = ax.scatter(
+        [], [], s=dot_size + 75, facecolors="none",
+        edgecolors=C.C_COUNCIL, linewidths=1.8, alpha=0.0, zorder=4,
+    )
+    region_p = Circle(
+        (0, 0), 40, facecolor=C.C_COUNCIL, edgecolor=C.C_COUNCIL,
+        lw=1.2, alpha=0.0, zorder=0.6,
+    )
+    region_b = Circle(
+        (0, 0), 40, facecolor=C.C_COUNCIL, edgecolor=C.C_COUNCIL,
+        lw=1.2, alpha=0.0, zorder=0.6,
+    )
+    ax.add_patch(region_p)
+    ax.add_patch(region_b)
+
+    def group_centre(moved, mask):
+        return np.median(moved[mask], axis=0)
+
+    ambient = C.make_ambient(n, amp=0.22, seed=53, period=168.0)
+
+    def smooth(value):
+        value = np.clip(value, 0.0, 1.0)
+        return value * value * (3.0 - 2.0 * value)
+
+    durations = {
+        "origin_in": 2 * fps,
+        "origin_hold": 6 * fps,
+        "origin_out": int(2.5 * fps),
+        "dots": 3 * fps,
+        "leaders": 2 * fps,
+        "friends": 4 * fps,
+        "simulation": 12 * fps,
+        "reset": 2 * fps,
+        "start_pause": 4 * fps,
+        "focus": int(1.5 * fps),
+        "focus_pause": 5 * fps,
+        "focus_out": int(1.5 * fps),
+        "bias_map_in": 2 * fps,
+        "bias_shift": 3 * fps,
+        "bias_map_hold": 5 * fps,
+        "bias_map_out": int(2.5 * fps),
+        "biased_pause": 2 * fps,
+        "biased_focus": int(1.5 * fps),
+        "ending": 5 * fps,
+    }
+    order = tuple(durations)
+    starts = {}
+    cursor = 0
+    for name in order:
+        starts[name] = cursor
+        cursor += durations[name]
+    total_frames = cursor
+
+    def stage(frame):
+        for name in order:
+            start = starts[name]
+            if frame < start + durations[name]:
+                return name, frame - start
+        return order[-1], durations[order[-1]] - 1
+
+    def set_edges(moved, which, alpha=1.0, progress=1.0):
+        if which == 0:
+            src, dst = src0, dst0
+            colours, widths = colours0.copy(), widths0
+        else:
+            src, dst = src1, dst1
+            colours, widths = colours1.copy(), widths1
+        if np.isscalar(progress):
+            progress = np.full(len(src), float(progress))
+        progress = np.clip(np.asarray(progress), 0.0, 1.0)
+        alive = progress > 1e-4
+        start = moved[src]
+        end = start + progress[:, None] * (moved[dst] - start)
+        colours[:, 3] *= alpha
+        friend_lines.set_segments(
+            np.stack((start[alive], end[alive]), axis=1)
+        )
+        friend_lines.set_colors(colours[alive])
+        friend_lines.set_linewidths(widths[alive])
+
+    def set_council(moved, council, alpha):
+        council_xy = moved[council]
+        glow.set_offsets(council_xy)
+        council_rings.set_offsets(council_xy)
+        glow.set_alpha(0.16 * alpha)
+        council_rings.set_alpha(alpha)
+
+    def clear_focus():
+        region_p.set_alpha(0.0)
+        region_b.set_alpha(0.0)
+
+    def set_focus(moved, amount, both=True):
+        amount = smooth(amount)
+        fill = 0.18 * amount
+        pink_c = group_centre(moved, ~blue)
+        blue_c = group_centre(moved, blue)
+        region_p.center = (float(pink_c[0]), float(pink_c[1]))
+        region_b.center = (float(blue_c[0]), float(blue_c[1]))
+        region_p.set_alpha(fill if both else 0.0)
+        region_b.set_alpha(fill)
+
+    def update(frame):
+        name, local = stage(frame)
+        fraction = local / max(durations[name] - 1, 1)
+        amb = ambient(frame)
+        base = xy0[:, :2]
+        moved = base + amb
+        council = council0
+        council_alpha = 1.0
+        edge_alpha = 1.0
+        edge_world = 0
+        edge_progress = 1.0
+        men_alpha = 0.0
+        people_alpha = 0.88
+        clear_focus()
+
+        if name == "origin_in":
+            council_alpha = 0.0
+            edge_alpha = 0.0
+            people_alpha = 0.88 * smooth(fraction)
+        elif name == "origin_hold":
+            council_alpha = 0.0
+            edge_alpha = 0.0
+            men_alpha = float(min(fraction * 3.0, 1.0))
+        elif name == "origin_out":
+            council_alpha = 0.0
+            edge_alpha = 0.0
+            men_alpha = 1.0 - smooth(fraction)
+        elif name == "dots":
+            council_alpha = 0.0
+            edge_alpha = 0.0
+        elif name == "leaders":
+            council_alpha = smooth(fraction)
+            edge_alpha = 0.0
+        elif name == "friends":
+            local_progress = (fraction - delays) / 0.10
+            edge_progress = np.clip(local_progress, 0.0, 1.0)
+        elif name == "simulation":
+            sim = fraction * (len(hist0) - 1)
+            council = hist0[min(int(round(sim)), len(hist0) - 1)]
+        elif name == "reset":
+            if fraction < 0.5:
+                council = hist0[-1]
+                council_alpha = 1.0 - smooth(fraction * 2.0)
+            else:
+                council = council_year5
+                council_alpha = smooth((fraction - 0.5) * 2.0)
+        elif name == "start_pause":
+            council = council_year5
+        elif name == "focus":
+            council = council_year5
+            set_focus(moved, fraction, both=True)
+        elif name == "focus_pause":
+            council = council_year5
+            set_focus(moved, 1.0, both=True)
+        elif name == "focus_out":
+            council = council_year5
+            set_focus(moved, 1.0 - smooth(fraction), both=True)
+        elif name == "bias_map_in":
+            council = council_year5
+            men_alpha = smooth(fraction)
+        elif name == "bias_shift":
+            shift = smooth(fraction)
+            base = xy0[:, :2] * (1.0 - shift) + xy1[:, :2] * shift
+            moved = base + amb
+            council = council_year5
+            edge_world = 0 if fraction < 0.5 else 1
+            edge_alpha = abs(2.0 * fraction - 1.0)
+            men_alpha = 1.0
+        elif name == "bias_map_hold":
+            base = xy1[:, :2]
+            moved = base + amb
+            council = council_year5
+            edge_world = 1
+            men_alpha = 1.0
+        elif name == "bias_map_out":
+            base = xy1[:, :2]
+            moved = base + amb
+            council = council_year5
+            edge_world = 1
+            men_alpha = 1.0 - smooth(fraction)
+        elif name == "biased_pause":
+            base = xy1[:, :2]
+            moved = base + amb
+            council = council_year5
+            edge_world = 1
+        elif name == "biased_focus":
+            base = xy1[:, :2]
+            moved = base + amb
+            council = council_year5
+            edge_world = 1
+            set_focus(moved, fraction, both=True)
+        else:
+            base = xy1[:, :2]
+            moved = base + amb
+            council = council_year5
+            edge_world = 1
+            set_focus(moved, 1.0, both=True)
+
+        cols = colour_cols.copy()
+        cols[:, 3] = people_alpha
+        people.set_offsets(moved)
+        people.set_facecolors(cols)
+        men_ring.set_offsets(moved[was_male])
+        men_ring.set_alpha(men_alpha)
+        if edge_alpha <= 0:
+            friend_lines.set_segments([])
+        else:
+            set_edges(
+                moved, edge_world, alpha=edge_alpha,
+                progress=edge_progress,
+            )
+        set_council(moved, council, council_alpha)
+        return (
+            people, men_ring, friend_lines, glow, council_rings,
+            region_p, region_b,
+        )
+
+    anim = FuncAnimation(
+        fig, update, frames=total_frames, interval=1000 / fps, blit=False,
+    )
+    C.save_mp4(anim, out, fps=fps, bg=black)
+    plt.close(fig)
 
 
 def main():
@@ -415,7 +805,20 @@ def main():
                   f"seat ratio {r['pooled_ratio']:.2f}×")
         plot_stats(results, n, seats, k, HERE / f"scene2_n{n}.png")
         if args.animate:
-            animate(results, n, HERE / f"scene2_n{n}.mp4")
+            animate(results, n, HERE / f"scene2_n{n}.mp4", mode="neutral")
+            animate(results, n, HERE / f"scene2_n{n}_v2.mp4", mode="inverted")
+            matched_neutral = simulate_mode(
+                n, seats, k, "neutral", FINAL_ANIMATION_SEED, n_runs=1
+            )
+            matched_biased = simulate_mode(
+                n, seats, k, "inverted", FINAL_ANIMATION_SEED, n_runs=1
+            )
+            animate_final_sequence(
+                matched_neutral,
+                matched_biased,
+                n,
+                HERE / "scene4_final.mp4",
+            )
 
 
 if __name__ == "__main__":

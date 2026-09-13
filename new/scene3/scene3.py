@@ -53,6 +53,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.collections import LineCollection
+from matplotlib.colors import to_rgba
 from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import MaxNLocator
 
@@ -96,8 +97,18 @@ def replace(xy: np.ndarray, mode: str, rng: np.random.Generator) -> np.ndarray:
     return xy
 
 
-def seed_council(n: int, seats: int, rng: np.random.Generator) -> np.ndarray:
-    return rng.choice(n, size=seats, replace=False)
+def seed_council(xy: np.ndarray, seats: int, rng: np.random.Generator) -> np.ndarray:
+    """Start power at parity so lock-in emerges during the simulation."""
+    blue = np.flatnonzero(xy[:, 0] > 0)
+    pink = np.flatnonzero(xy[:, 0] <= 0)
+    n_blue = seats // 2
+    n_pink = seats - n_blue
+    if len(blue) < n_blue or len(pink) < n_pink:
+        return rng.choice(len(xy), size=seats, replace=False)
+    return np.concatenate([
+        rng.choice(blue, size=n_blue, replace=False),
+        rng.choice(pink, size=n_pink, replace=False),
+    ])
 
 
 def step(xy, council, mode, k, rng, rescale=False):
@@ -109,6 +120,19 @@ def step(xy, council, mode, k, rng, rescale=False):
     friends = C.knn_friends(xy, k)
     council = C.elect(council, friends, rng)
     return xy, friends, council
+
+
+def n_cross_colour_friends(xy: np.ndarray, friends: np.ndarray) -> int:
+    """Unique undirected friendships that cross the pink/blue colour line."""
+    n = len(xy)
+    src = np.repeat(np.arange(n), friends.shape[1])
+    dst = friends.ravel()
+    lo = np.minimum(src, dst).astype(np.int64)
+    hi = np.maximum(src, dst).astype(np.int64)
+    packed = np.unique(lo * n + hi)
+    a, b = packed // n, packed % n
+    colour = xy[:, 0] > 0
+    return int((colour[a] != colour[b]).sum())
 
 
 def blue_share(xy, council) -> float:
@@ -123,9 +147,10 @@ def polarization(xy) -> float:
 def simulate_run(n, seats, k, mode, years, rng, record_xy=False):
     xy = random_traits(n, rng)
     friends = C.knn_friends(xy, k)
-    council = seed_council(n, seats, rng)
+    council = seed_council(xy, seats, rng)
     shares = [blue_share(xy, council)]
     pol = [polarization(xy)]
+    cross = [n_cross_colour_friends(xy, friends)]
     frames = [(xy.copy(), council.copy(), friends.copy())] if record_xy else None
     for year in range(1, years + 1):
         xy, friends, council = step(
@@ -133,9 +158,10 @@ def simulate_run(n, seats, k, mode, years, rng, record_xy=False):
         )
         shares.append(blue_share(xy, council))
         pol.append(polarization(xy))
+        cross.append(n_cross_colour_friends(xy, friends))
         if record_xy:
             frames.append((xy.copy(), council.copy(), friends.copy()))
-    return np.array(shares), np.array(pol), frames
+    return np.array(shares), np.array(pol), np.array(cross), frames
 
 
 def summarize(paths: np.ndarray) -> dict:
@@ -161,14 +187,14 @@ def summarize(paths: np.ndarray) -> dict:
 
 
 def plot_stats(bundle: dict, n: int, seats: int, out: Path) -> None:
-    fig = plt.figure(figsize=(14.0, 9.4), facecolor="white")
+    fig = plt.figure(figsize=(14.0, 12.6), facecolor="white")
     fig.suptitle(
         f"Scene 3 — Equality from scratch  ·  N={n}, {seats} seats, {N_YEARS} years\n"
         "influence + death/birth + named-then-chosen elections",
         fontsize=13, fontweight="bold", y=0.98,
     )
-    gs = GridSpec(2, 2, figure=fig, hspace=0.34, wspace=0.26,
-                  left=0.07, right=0.97, top=0.86, bottom=0.08)
+    gs = GridSpec(3, 2, figure=fig, hspace=0.38, wspace=0.26,
+                  left=0.07, right=0.97, top=0.88, bottom=0.06)
     for col, mode in enumerate(("random", "inherited")):
         b = bundle[mode]
         ax = fig.add_subplot(gs[0, col])
@@ -197,20 +223,33 @@ def plot_stats(bundle: dict, n: int, seats: int, out: Path) -> None:
         ax.set_title("Trait polarisation")
         ax.grid(alpha=0.25)
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        ax = fig.add_subplot(gs[2, col])
+        for p in b["cross"]:
+            ax.plot(t, p, color=C.C_GREY, lw=0.9, alpha=0.3)
+        ax.plot(t, np.mean(b["cross"], 0), color=C.C_GREY, lw=1.8)
+        ax.set_xlabel("Year")
+        ax.set_ylabel("cross-colour friendships")
+        ax.set_title("Pink–blue ties (count)")
+        ax.set_ylim(bottom=0)
+        ax.grid(alpha=0.25)
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     fig.savefig(out, dpi=140)
     plt.close()
     print(f"  plot → {out}")
 
 
-def packed_friend_edges(friends: np.ndarray, people: np.ndarray, viz_k: int, n: int) -> np.ndarray:
-    """Unique undirected (i, j) pairs among a displayed subset of friendships."""
+def packed_friend_edges(friends: np.ndarray, people: np.ndarray, viz_k: int, n: int,
+                        keep_frac: float = 0.40) -> np.ndarray:
+    """Unique undirected friendships, then a stable 40% sample."""
     k = min(viz_k, friends.shape[1])
     src = np.repeat(people, k)
     dst = friends[people, :k].ravel()
     lo = np.minimum(src, dst)
     hi = np.maximum(src, dst)
-    packed = lo.astype(np.int64) * n + hi
-    return np.unique(packed)
+    packed = np.unique(lo.astype(np.int64) * n + hi)
+    keep = ((packed * 2654435761) % (2 ** 32)) / (2 ** 32) < keep_frac
+    return packed[keep]
 
 
 def unpack_edges(packed: np.ndarray, n: int) -> tuple[np.ndarray, np.ndarray]:
@@ -227,8 +266,42 @@ def growing_segments(xy: np.ndarray, packed: np.ndarray, n: int, progress: float
     return np.stack([start, end], axis=1)
 
 
-def animate_pink_run(frames, blue_shares: np.ndarray, n: int, out: Path) -> None:
-    """A slow, uncluttered replay of the inherited world that went pink."""
+def edge_look(xy: np.ndarray, packed: np.ndarray, n: int, progress: float):
+    """Dim grey ties; nearby ones a little brighter, with stable random jitter."""
+    if len(packed) == 0 or progress <= 0:
+        return (
+            np.empty((0, 2, 2)),
+            np.empty((0, 4)),
+            np.empty((0,)),
+        )
+    segs = growing_segments(xy, packed, n, progress)
+    a, b = unpack_edges(packed, n)
+    dist = np.linalg.norm(xy[a] - xy[b], axis=1)
+    scale = max(float(np.percentile(dist, 85)) if len(dist) else 1.0, 1.0)
+    closeness = np.clip(1.0 - dist / scale, 0.0, 1.0)
+    noise = 0.55 + 0.90 * (((packed * 1103515245 + 12345) % (2 ** 31)) / (2 ** 31))
+    brightness = np.clip(0.04 + 0.42 * closeness * noise, 0.03, 0.58)
+    colours = np.tile(np.asarray(to_rgba(C.C_GREY)), (len(packed), 1))
+    colours[:, 3] = brightness
+    widths = 0.30 + 1.15 * closeness
+    return segs, colours, widths
+
+
+def pack_world(frames, series: np.ndarray, people: np.ndarray, n: int,
+               accent: str, chart_title: str) -> dict:
+    viz_k = frames[0][2].shape[1]
+    return {
+        "positions": np.stack([f[0] for f in frames]),
+        "councils": [f[1] for f in frames],
+        "edges": [packed_friend_edges(f[2], people, viz_k, n) for f in frames],
+        "series": np.asarray(series, dtype=float),
+        "accent": accent,
+        "title": chart_title,
+    }
+
+
+def animate_inherited_run(world: dict, n: int, out: Path) -> None:
+    """One inherited world, interpolated year-to-year on the trait plane."""
     BLACK = "#000000"
     fig = plt.figure(figsize=(16, 9), facecolor=BLACK)
     ax = fig.add_axes([0.255, 0.14, 0.49, 0.72])
@@ -238,30 +311,28 @@ def animate_pink_run(frames, blue_shares: np.ndarray, n: int, out: Path) -> None
     ax.set_facecolor(BLACK)
     axp.set_facecolor(BLACK)
     s = 36 if n <= 100 else 10
-    viz_k = 8 if n <= 100 else 4
-    people = np.arange(n) if n <= 100 else np.linspace(0, n - 1, 90, dtype=int)
 
-    xy, council, friends0 = frames[0]
-    blue = xy[:, 0] > 0
+    xy0 = world["positions"][0]
+    blue = xy0[:, 0] > 0
     ax.axvline(0, color=C.DARK_GRID, lw=0.8)
     ax.axhline(0, color=C.DARK_GRID, lw=0.8)
+    segs0, colours0, widths0 = edge_look(xy0, world["edges"][0], n, 1.0)
     friend_lines = LineCollection(
-        growing_segments(xy, packed_friend_edges(friends0, people, viz_k, n), n, 1.0),
-        colors=C.C_GREY, linewidths=0.55, alpha=0.28, zorder=1,
+        segs0, colors=colours0, linewidths=widths0, zorder=1,
     )
     ax.add_collection(friend_lines)
     sc_p = ax.scatter(
-        xy[~blue, 0], xy[~blue, 1], s=s,
+        xy0[~blue, 0], xy0[~blue, 1], s=s,
         c=C.C_PINK_BRIGHT, alpha=0.82, linewidths=0, zorder=2,
     )
     sc_b = ax.scatter(
-        xy[blue, 0], xy[blue, 1], s=s,
+        xy0[blue, 0], xy0[blue, 1], s=s,
         c=C.C_BLUE_BRIGHT, alpha=0.82, linewidths=0, zorder=2,
     )
-    on = np.zeros(len(xy), dtype=bool)
-    on[council] = True
+    on = np.zeros(len(xy0), dtype=bool)
+    on[world["councils"][0]] = True
     sc_c = ax.scatter(
-        xy[on, 0], xy[on, 1], s=s + 24, facecolors="none",
+        xy0[on, 0], xy0[on, 1], s=s + 24, facecolors="none",
         edgecolors=C.C_COUNCIL, linewidths=1.5, zorder=3,
     )
     ax.set_xlim(-105, 105)
@@ -285,64 +356,59 @@ def animate_pink_run(frames, blue_shares: np.ndarray, n: int, out: Path) -> None
         0.05, 0.90, "Year 0", color=C.DARK_TEXT, fontsize=26,
         fontweight="bold", ha="left", va="center",
     )
-
-    pink_shares = 100.0 - np.asarray(blue_shares)
-    line, = axp.plot([], [], color=C.C_PINK_BRIGHT, lw=3.0)
-    dot, = axp.plot([], [], "o", color=C.C_PINK_BRIGHT, ms=6)
+    line, = axp.plot([], [], color=world["accent"], lw=3.0)
+    dot, = axp.plot([], [], "o", color=world["accent"], ms=6)
     axp.axhline(50, color=C.DARK_MUTED, ls="--", lw=0.9, alpha=0.6)
     axp.set_xlim(0, N_YEARS)
     axp.set_ylim(0, 100)
     axp.set_xticks([0, N_YEARS])
     axp.set_yticks([0, 50, 100])
     axp.tick_params(labelsize=9)
-    axp.set_title("% pink", color=C.C_PINK_BRIGHT, fontsize=15, fontweight="bold")
+    axp.set_title(world["title"], color=world["accent"],
+                  fontsize=15, fontweight="bold")
 
-    # Interpolate positions between yearly snapshots for smooth motion.
-    positions = np.stack([f[0] for f in frames])  # (years+1, n, 2)
-    councils = [f[1] for f in frames]
-    edge_years = [
-        packed_friend_edges(f[2], people, viz_k, n) for f in frames
-    ]
-    n_years = len(frames) - 1
-    sub = 6  # interpolated frames per year
+    n_years = world["positions"].shape[0] - 1
+    sub = int(world["sub"])
+    ambient = C.make_ambient(n, amp=0.22, seed=31, period=168.0)
 
     def update(f):
         seg = min(f / sub, n_years)
         t0 = int(np.floor(seg))
         t1 = min(t0 + 1, n_years)
         u = seg - t0
-        ease = u * u * (3.0 - 2.0 * u)  # smoothstep
-        xy = positions[t0] * (1.0 - ease) + positions[t1] * ease
-        blue = xy[:, 0] > 0
+        ease = u * u * (3.0 - 2.0 * u)
+        base_xy = (
+            world["positions"][t0] * (1.0 - ease)
+            + world["positions"][t1] * ease
+        )
+        xy = base_xy + ambient(f)
+        blue = base_xy[:, 0] > 0
         sc_p.set_offsets(xy[~blue])
         sc_b.set_offsets(xy[blue])
-        council = councils[t1 if ease >= 0.5 else t0]
+        council = world["councils"][t1 if ease >= 0.5 else t0]
         on = np.zeros(len(xy), dtype=bool)
         on[council] = True
         sc_c.set_offsets(xy[on])
-        old = edge_years[t0]
-        new = edge_years[t1]
+        old = world["edges"][t0]
+        new = world["edges"][t1]
         stay = np.intersect1d(old, new, assume_unique=True)
         appear = np.setdiff1d(new, old, assume_unique=True)
         vanish = np.setdiff1d(old, new, assume_unique=True)
-        segs = np.concatenate([
-            growing_segments(xy, stay, n, 1.0),
-            growing_segments(xy, appear, n, ease),
-            growing_segments(xy, vanish, n, 1.0 - ease),
-        ], axis=0)
-        friend_lines.set_segments(segs)
+        segs_s, col_s, w_s = edge_look(xy, stay, n, 1.0)
+        segs_a, col_a, w_a = edge_look(xy, appear, n, ease)
+        segs_v, col_v, w_v = edge_look(xy, vanish, n, 1.0 - ease)
+        friend_lines.set_segments(np.concatenate([segs_s, segs_a, segs_v], axis=0))
+        friend_lines.set_colors(np.concatenate([col_s, col_a, col_v], axis=0))
+        friend_lines.set_linewidths(np.concatenate([w_s, w_a, w_v], axis=0))
+        series = world["series"]
+        share_now = series[t0] * (1.0 - ease) + series[t1] * ease
         whole = np.arange(t0 + 1)
-        share_now = pink_shares[t0] * (1.0 - ease) + pink_shares[t1] * ease
-        line.set_data(
-            np.append(whole, seg), np.append(pink_shares[: t0 + 1], share_now)
-        )
+        line.set_data(np.append(whole, seg), np.append(series[: t0 + 1], share_now))
         dot.set_data([seg], [share_now])
         year_text.set_text(f"Year {int(round(seg))}")
         return sc_p, sc_b, sc_c, friend_lines, line, dot, year_text
 
-    anim = FuncAnimation(
-        fig, update, frames=n_years * sub + 1, interval=40, blit=False,
-    )
+    anim = FuncAnimation(fig, update, frames=n_years * sub + 1, interval=40, blit=False)
     C.save_mp4(anim, out, fps=24, bg=BLACK)
     plt.close()
 
@@ -375,24 +441,24 @@ def run_from_seed(n, seats, k, mode, seed, years, record_xy=True):
     return simulate_run(n, seats, k, mode, years, rng, record_xy=record_xy)
 
 
-def pick_pink_frames(n, seats, k, mode, seed_base, n_runs, years, stored=None):
-    """Return a reproducible inherited run whose council ends pink-majority."""
-    if stored is not None:
-        pink_seed = int(stored["pink"])
-        pink_path, _, pink_frames = run_from_seed(
-            n, seats, k, mode, pink_seed, years
-        )
-        if pink_path[-1] < 50:
-            return pink_frames, pink_path, pink_seed
+def pick_majority_frames(n, seats, k, mode, seed_base, n_runs, years,
+                         side: str, stored=None):
+    """Return a reproducible inherited run that ends pink- or blue-majority."""
+    want_pink = side == "pink"
+    if stored is not None and side in stored:
+        seed = int(stored[side])
+        path, _, _, frames = run_from_seed(n, seats, k, mode, seed, years)
+        ok = path[-1] < 50 if want_pink else path[-1] > 50
+        if ok:
+            return frames, path, seed
 
     for run in range(n_runs * 3):
-        pink_seed = seed_base + 9000 + run
-        pink_path, _, pink_frames = run_from_seed(
-            n, seats, k, mode, pink_seed, years
-        )
-        if pink_path[-1] < 40:
-            return pink_frames, pink_path, pink_seed
-    raise RuntimeError("could not find a pink-majority replay seed")
+        seed = seed_base + 9000 + run
+        path, _, _, frames = run_from_seed(n, seats, k, mode, seed, years)
+        ok = path[-1] < 40 if want_pink else path[-1] > 60
+        if ok:
+            return frames, path, seed
+    raise RuntimeError(f"could not find a {side}-majority replay seed")
 
 
 def add_cli(p):
@@ -414,31 +480,51 @@ def main():
         bundle = {}
         if not args.replay:
             for m_i, mode in enumerate(("random", "inherited")):
-                paths, pols = [], []
+                paths, pols, crosses = [], [], []
                 for run in range(n_runs):
                     rng = np.random.default_rng(args.seed + 2000 * m_i + run)
-                    sh, pol, _ = simulate_run(n, seats, k, mode, N_YEARS, rng, record_xy=False)
-                    paths.append(sh); pols.append(pol)
-                paths, pols = np.array(paths), np.array(pols)
+                    sh, pol, cross, _ = simulate_run(
+                        n, seats, k, mode, N_YEARS, rng, record_xy=False
+                    )
+                    paths.append(sh); pols.append(pol); crosses.append(cross)
+                paths, pols, crosses = np.array(paths), np.array(pols), np.array(crosses)
                 s = summarize(paths)
-                bundle[mode] = {"paths": paths, "pol": pols, "sum": s}
+                bundle[mode] = {"paths": paths, "pol": pols, "cross": crosses, "sum": s}
                 print(f"  {mode}: |end−50|={s['end_abs']:.1f}  "
                       f"blue-heavy {s['frac_blue_win']*100:.0f}%  "
                       f"pink-heavy {s['frac_pink_win']*100:.0f}%  "
-                      f"sign-flip runs {s['flips']}/{s['n_runs']}")
+                      f"sign-flip runs {s['flips']}/{s['n_runs']}  "
+                      f"cross-colour ties {crosses[:, 0].mean():.0f}→{crosses[:, -1].mean():.0f}")
             plot_stats(bundle, n, seats, HERE / f"scene3_n{n}.png")
         if args.animate or args.replay:
             stored = stored_all.get(str(n)) if args.replay else None
             if args.replay and stored is None:
                 raise SystemExit(f"no stored pink/blue seeds for N={n} in {SEEDS_PATH}")
-            print("  recording inherited pink-majority world for animation…")
+            print("  recording inherited pink and blue worlds for animation…")
             if stored:
-                print(f"    replay pink seed={stored['pink']}")
-            pf, pp, pseed = pick_pink_frames(
-                n, seats, k, "inherited", args.seed, n_runs, N_YEARS, stored=stored,
+                print(f"    replay pink seed={stored.get('pink')}  "
+                      f"blue seed={stored.get('blue')}")
+            pf, pp, pseed = pick_majority_frames(
+                n, seats, k, "inherited", args.seed, n_runs, N_YEARS,
+                side="pink", stored=stored,
+            )
+            bf, bp, bseed = pick_majority_frames(
+                n, seats, k, "inherited", args.seed, n_runs, N_YEARS,
+                side="blue", stored=stored,
             )
             print(f"    inherited went pink  seed={pseed}  end {pp[-1]:.1f}% blue")
-            animate_pink_run(pf, pp, n, HERE / f"scene3_n{n}.mp4")
+            print(f"    inherited went blue  seed={bseed}  end {bp[-1]:.1f}% blue")
+            people = np.arange(n) if n <= 100 else np.linspace(0, n - 1, 90, dtype=int)
+            pink_world = pack_world(
+                pf, 100.0 - pp, people, n, C.C_PINK_BRIGHT, "% pink",
+            )
+            blue_world = pack_world(
+                bf, bp, people, n, C.C_BLUE_BRIGHT, "% blue",
+            )
+            pink_world["sub"] = 6
+            blue_world["sub"] = 3  # twice as fast — a quick second example
+            animate_inherited_run(pink_world, n, HERE / f"scene3_n{n}.mp4")
+            animate_inherited_run(blue_world, n, HERE / f"scene3_n{n}_blue.mp4")
 
 
 if __name__ == "__main__":

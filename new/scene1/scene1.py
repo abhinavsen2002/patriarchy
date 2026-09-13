@@ -13,8 +13,8 @@ But this city has two problems:
 
 1. It is incredibly sexist. Men and women only form friendships with people
    of the same gender.
-2. The existing city council already has more men than women:
-   80% of council members are men.
+2. The existing city council already has slightly more men than women:
+   60% of council members are men.
 
 What happens? Because men only befriend men, a male-heavy council both
 nominates more men and then prefers those men. The majority does not
@@ -25,9 +25,9 @@ member names you. Among nominees, chance of winning grows with how many
 friends you have on the current council.
 
 Scene-1-only tweaks (for a clearer, slower-locking visual — no other scene
-is affected): the council starts 80% male, and the win advantage is damped
-from the shared square rule (~k^2) to a gentler ~k^1.5 via ADVANTAGE_EXPONENT
-and the local elect_soft. The animation is small-city only (N=100).
+is affected): the win advantage is damped from the shared square rule (~k^2)
+to a gentler ~k^1.5 via ADVANTAGE_EXPONENT and the local elect_soft. The
+animation is small-city only (N=100). The council still starts 60% male.
 
 Run:
   python scene1.py
@@ -43,6 +43,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.collections import LineCollection
+from matplotlib.colors import to_rgba
 from matplotlib.gridspec import GridSpec
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator
@@ -56,7 +57,7 @@ N_ROUNDS = 10
 N_RUNS = 80
 N_PATHS = 40
 EQUIL_FROM = 4
-INIT_MALE_FRAC = 0.80
+INIT_MALE_FRAC = 0.60
 
 # Scene-1-only softening of the election advantage.
 # common.elect uses named × chosen, so a group that is k times larger on the
@@ -270,7 +271,7 @@ def plot_stats(st: dict, out: Path) -> None:
     print(f"  plot → {out}")
 
 
-def animate(st: dict, out: Path) -> None:
+def animate(st: dict, out: Path, identity_style: str = "colour") -> None:
     male, xy, friends, hist = st["male"], st["xy"], st["friends"], st["hist_rep"]
     n = st["n"]
     black = "#000000"
@@ -296,17 +297,20 @@ def animate(st: dict, out: Path) -> None:
     base[male, 1] = scale(xy[male, 1], 0.08, CITY_TOP)
     base[~male, 1] = scale(xy[~male, 1], 0.08, CITY_TOP)
 
-    def grid_slots(count, x0, x1, per_row):
-        """Pack ``count`` leader seats into rows filling from the top down."""
+    def grid_slots(count, center_x, col_gap, per_row):
+        """Cluster ``count`` leaders in staggered rows around ``center_x``."""
         if count == 0:
             return np.zeros((0, 2))
-        y_top, y_gap = 0.86, 0.055
+        y_top, y_gap = 0.86, 0.06
         out = []
         rows = int(np.ceil(count / per_row))
         for row in range(rows):
             in_row = min(per_row, count - row * per_row)
-            xs = (np.linspace(x0, x1, in_row) if in_row > 1
-                  else np.array([(x0 + x1) / 2]))
+            total = (in_row - 1) * col_gap
+            # Shift alternate rows by half a column so the block is not a
+            # rigid lattice.
+            offset = (col_gap / 2) if row % 2 else 0.0
+            xs = center_x - total / 2 + offset + col_gap * np.arange(in_row)
             y = y_top - row * y_gap
             out.extend((x, y) for x in xs)
         return np.asarray(out)
@@ -316,38 +320,87 @@ def animate(st: dict, out: Path) -> None:
         c = np.asarray(council)
         leaders_m = np.sort(c[male[c]])
         leaders_w = np.sort(c[~male[c]])
-        pos[leaders_m] = grid_slots(len(leaders_m), 0.06, MID - SEAM, 6)
-        pos[leaders_w] = grid_slots(len(leaders_w), MID + SEAM, 0.94, 4)
+        # Each cluster sits in the middle of its own half, not the whole screen.
+        pos[leaders_m] = grid_slots(len(leaders_m), 0.25, 0.05, 5)
+        pos[leaders_w] = grid_slots(len(leaders_w), 0.75, 0.06, 4)
         return pos
 
     def nomination_pairs(council):
-        # All nominations are visible in the small city. The large-city view
-        # samples three per leader so 40,000 lines do not become a solid block.
-        shown = friends[council] if n <= 100 else friends[council, :3]
+        # Keep a sparse, stable sample so the web reads as individual threads.
+        shown = friends[council]
         src = np.repeat(council, shown.shape[1])
-        return src, shown.ravel()
+        dst = shown.ravel()
+        rng_lines = np.random.default_rng(7)
+        keep = rng_lines.random(len(src)) < 0.45
+        src, dst = src[keep], dst[keep]
+        is_male_src = male[src]
+        kept_src, kept_dst = [], []
+        for mask in (is_male_src, ~is_male_src):
+            idx = np.flatnonzero(mask)
+            if len(idx) > 32:
+                idx = rng_lines.choice(idx, size=32, replace=False)
+            kept_src.append(src[idx])
+            kept_dst.append(dst[idx])
+        return np.concatenate(kept_src), np.concatenate(kept_dst)
 
-    def segments(pos, src, dst, progress):
+    def line_start_times(n_lines, round_index):
+        """Each line begins a little later than the first, in a stable order."""
+        if n_lines == 0:
+            return np.zeros(0)
+        return np.random.default_rng(13 + round_index).uniform(
+            0.0, 0.45, size=n_lines
+        )
+
+    def staggered_progress(global_t, delays, duration=0.55):
+        local = (global_t - delays) / duration
+        return np.clip(local, 0.0, 1.0)
+
+    def line_look(pos, src, dst, progress):
+        n_lines = len(src)
+        progress = np.broadcast_to(
+            np.asarray(progress, dtype=float).reshape(-1), n_lines
+        ).reshape(-1, 1)
         start = pos[src]
         end = start + progress * (pos[dst] - start)
-        return np.stack((start, end), axis=1)
+        alive = progress.ravel() > 1e-4
+        if not np.any(alive):
+            return np.empty((0, 2, 2)), np.empty((0, 4)), np.empty(0)
+        colours = np.tile(np.asarray(to_rgba(C.C_GREY)), (int(alive.sum()), 1))
+        colours[:, 3] = 0.45
+        widths = np.full(int(alive.sum()), 0.65 if n <= 100 else 0.35)
+        return np.stack((start[alive], end[alive]), axis=1), colours, widths
 
-    ax.plot([MID, MID], [0.03, 0.90], color=C.C_GREY, lw=0.8,
-            alpha=0.35, zorder=0)
+    def set_lines(pos, src, dst, progress):
+        segs, colours, widths = line_look(pos, src, dst, progress)
+        nomination_lines.set_segments(segs)
+        nomination_lines.set_color(colours)
+        nomination_lines.set_linewidths(widths)
 
     dot_size = 54 if n <= 100 else 11
     pos0 = positions_for(hist[0])
-    sc_m = ax.scatter(
-        pos0[male, 0], pos0[male, 1], s=dot_size, marker="o",
-        c=C.C_BLUE, linewidths=0, alpha=0.95, zorder=3,
-    )
-    sc_w = ax.scatter(
-        pos0[~male, 0], pos0[~male, 1], s=dot_size * 1.15, marker="^",
-        c=C.C_PINK, linewidths=0, alpha=0.95, zorder=3,
-    )
+    if identity_style == "shape":
+        sc_m = ax.scatter(
+            pos0[male, 0], pos0[male, 1], s=dot_size, marker="o",
+            facecolors=C.DARK_TEXT, edgecolors="none", linewidths=0,
+            alpha=0.95, zorder=3,
+        )
+        sc_w = ax.scatter(
+            pos0[~male, 0], pos0[~male, 1], s=dot_size * 1.35, marker="^",
+            facecolors="none", edgecolors=C.DARK_TEXT, linewidths=1.8,
+            alpha=0.95, zorder=3,
+        )
+    else:
+        sc_m = ax.scatter(
+            pos0[male, 0], pos0[male, 1], s=dot_size, marker="o",
+            c=C.C_BLUE_BRIGHT, linewidths=0, alpha=0.95, zorder=3,
+        )
+        sc_w = ax.scatter(
+            pos0[~male, 0], pos0[~male, 1], s=dot_size * 1.15, marker="^",
+            c=C.C_PINK_BRIGHT, linewidths=0, alpha=0.95, zorder=3,
+        )
     nomination_lines = LineCollection(
         [], colors=C.C_GREY, linewidths=0.65 if n <= 100 else 0.35,
-        alpha=0.34, zorder=1,
+        zorder=1,
     )
     ax.add_collection(nomination_lines)
 
@@ -376,10 +429,6 @@ def animate(st: dict, out: Path) -> None:
         0.05, 0.94, "Round 0", color=C.DARK_TEXT,
         fontsize=25, fontweight="bold", ha="left", va="center",
     )
-    phase_text = fig.text(
-        0.05, 0.895, "Current leaders", color=C.C_GREY,
-        fontsize=14, ha="left", va="center",
-    )
     count_text = fig.text(
         0.95, 0.94, "", color=C.DARK_TEXT,
         fontsize=16, fontweight="bold", ha="right", va="center",
@@ -388,23 +437,28 @@ def animate(st: dict, out: Path) -> None:
         0.50, 0.965, "LEADERS", color=C.C_COUNCIL,
         fontsize=13, fontweight="bold", ha="center", va="center",
     )
+    identity_colour = C.DARK_TEXT if identity_style == "shape" else C.C_BLUE_BRIGHT
     fig.text(
-        0.05, 0.045, "●  MEN", color=C.C_BLUE,
+        0.05, 0.045, "●  MEN", color=identity_colour,
         fontsize=15, fontweight="bold", ha="left",
     )
+    identity_colour = C.DARK_TEXT if identity_style == "shape" else C.C_PINK_BRIGHT
+    women_symbol = "△" if identity_style == "shape" else "▲"
     fig.text(
-        0.15, 0.045, "▲  WOMEN", color=C.C_PINK,
+        0.15, 0.045, f"{women_symbol}  WOMEN", color=identity_colour,
         fontsize=15, fontweight="bold", ha="left",
     )
 
     initial_hold = 18
-    nomination_frames = 20
+    nomination_frames = 28
     nomination_hold = 8
     transition_frames = 24
     cycle = nomination_frames + nomination_hold + transition_frames
 
     def smoothstep(value):
         return value * value * (3.0 - 2.0 * value)
+
+    ambient = C.make_ambient(n, amp=0.0009, seed=17, period=168.0)
 
     def set_leader_artists(old_council, new_council, old_alpha, new_alpha, pos):
         old_xy = pos[old_council]
@@ -429,30 +483,30 @@ def animate(st: dict, out: Path) -> None:
 
         current = hist[round_index]
         nxt = hist[min(round_index + 1, N_ROUNDS)]
-        pos_current = positions_for(current)
-        pos_next = positions_for(nxt)
+        amb = ambient(frame)
+        pos_current = positions_for(current) + amb
+        pos_next = positions_for(nxt) + amb
         src, dst = nomination_pairs(current)
+        delays = line_start_times(len(src), round_index)
 
         if local < 0:
             pos = pos_current
             nomination_lines.set_segments([])
             set_leader_artists(current, nxt, 1.0, 0.0, pos)
-            phase = "Current leaders"
             shown = current
             displayed_round = 0
         elif local < nomination_frames:
-            progress = smoothstep(local / max(nomination_frames - 1, 1))
+            global_t = local / max(nomination_frames - 1, 1)
+            progress = staggered_progress(global_t, delays)
             pos = pos_current
-            nomination_lines.set_segments(segments(pos, src, dst, progress))
+            set_lines(pos, src, dst, progress)
             set_leader_artists(current, nxt, 1.0, 0.0, pos)
-            phase = "Leaders nominate people they know"
             shown = current
             displayed_round = round_index + 1
         elif local < nomination_frames + nomination_hold:
             pos = pos_current
-            nomination_lines.set_segments(segments(pos, src, dst, 1.0))
+            set_lines(pos, src, dst, 1.0)
             set_leader_artists(current, nxt, 1.0, 0.0, pos)
-            phase = "Nominees are considered"
             shown = current
             displayed_round = round_index + 1
         else:
@@ -461,11 +515,10 @@ def animate(st: dict, out: Path) -> None:
             ) / max(transition_frames - 1, 1)
             progress = smoothstep(raw)
             pos = pos_current * (1.0 - progress) + pos_next * progress
-            nomination_lines.set_segments(
-                segments(pos, src, dst, 1.0 - progress)
+            set_lines(
+                pos, src, dst, 1.0 - staggered_progress(raw, delays)
             )
             set_leader_artists(current, nxt, 1.0 - progress, progress, pos)
-            phase = "Winners become the next leaders"
             shown = nxt if progress >= 0.5 else current
             displayed_round = round_index + 1
 
@@ -473,11 +526,10 @@ def animate(st: dict, out: Path) -> None:
         sc_w.set_offsets(pos[~male])
         men = int(male[shown].sum())
         round_text.set_text(f"Round {displayed_round}")
-        phase_text.set_text(phase)
         count_text.set_text(f"{men} men  ·  {len(shown) - men} women")
         return (
             sc_m, sc_w, nomination_lines, glow_old, ring_old,
-            glow_new, ring_new, round_text, phase_text, count_text,
+            glow_new, ring_new, round_text, count_text,
         )
 
     total_frames = initial_hold + N_ROUNDS * cycle
@@ -492,7 +544,7 @@ def main():
     args = C.parse_cli("Scene 1 — Meritopolis patriarchy")
     if args.size == "large":
         raise SystemExit("Scene 1 is configured for the small city only (N=100).")
-    print("Scene 1 — same-gender friendships, 80% male council (softened k^1.5 rule)")
+    print("Scene 1 — same-gender friendships, 60% male council (softened k^1.5 rule)")
     print("  election: named by sitting friends, then chosen by them")
     for size in ("small",):
         cfg = C.SIZES[size]
@@ -507,6 +559,11 @@ def main():
         plot_stats(st, HERE / f"scene1_n{n}.png")
         if args.animate:
             animate(st, HERE / f"scene1_n{n}.mp4")
+            animate(
+                st,
+                HERE / f"scene1_n{n}_v2.mp4",
+                identity_style="shape",
+            )
 
 
 if __name__ == "__main__":

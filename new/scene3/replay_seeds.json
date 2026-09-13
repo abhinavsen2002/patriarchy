@@ -4,9 +4,11 @@
   "cli_seed": 42,
   "worlds": {
     "100": {
-      "blue": 9044,
-      "pink": 9042,
-      "blue_end_pct": 95.0,
+      "blue": 9156,
+      "pink": 13481,
+      "previous_pink": 9042,
+      "previous_blue": 9044,
+      "blue_end_pct": 100.0,
       "pink_end_pct": 0.0
     },
     "1000": {
